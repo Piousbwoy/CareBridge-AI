@@ -57,7 +57,33 @@ class _OnboardingShellState extends State<_OnboardingShell> with SingleTickerPro
           Positioned(
             top: 0, left: 0, right: 0,
             height: MediaQuery.of(context).size.height * 0.55,
-            child: Image.asset(widget.heroImage, fit: BoxFit.cover),
+            child: Image.asset(
+              widget.heroImage,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      widget.accentColor.withValues(alpha: 0.9),
+                      AppTheme.primaryNavy,
+                      const Color(0xFF0D2B45),
+                    ],
+                  ),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.favorite_rounded, color: Colors.white.withValues(alpha: 0.3), size: 80),
+                      const SizedBox(height: 12),
+                      Text('CareBridge AI', style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.5))),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
 
           // Gradient from image to white card

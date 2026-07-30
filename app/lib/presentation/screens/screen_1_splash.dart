@@ -76,13 +76,23 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0A2540),
       body: Stack(
         children: [
-          // Full-bleed hero image
+          // Full-bleed hero image with gradient fallback
           Positioned.fill(
             child: Image.asset(
               'assets/images/splash_hero.png',
               fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF0A2540), Color(0xFF0D3563), Color(0xFF1A5A6A)],
+                  ),
+                ),
+              ),
             ),
           ),
 
