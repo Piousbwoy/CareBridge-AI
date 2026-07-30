@@ -36,7 +36,7 @@ class _OnboardingShellState extends State<_OnboardingShell> with SingleTickerPro
     super.initState();
     _animCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.12), end: Offset.zero)
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
         .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
   }
@@ -50,174 +50,187 @@ class _OnboardingShellState extends State<_OnboardingShell> with SingleTickerPro
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // Hero image — top 55% of screen
-          Positioned(
-            top: 0, left: 0, right: 0,
-            height: MediaQuery.of(context).size.height * 0.55,
-            child: Image.asset(
-              widget.heroImage,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      widget.accentColor.withValues(alpha: 0.9),
-                      AppTheme.primaryNavy,
-                      const Color(0xFF0D2B45),
-                    ],
-                  ),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.favorite_rounded, color: Colors.white.withValues(alpha: 0.3), size: 80),
-                      const SizedBox(height: 12),
-                      Text('CareBridge AI', style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.5))),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+      backgroundColor: Colors.white,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final totalH = constraints.maxHeight;
+          final heroH = totalH * 0.44;
+          final cardH = totalH * 0.60;
 
-          // Gradient from image to white card
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.35,
-            left: 0, right: 0,
-            height: MediaQuery.of(context).size.height * 0.25,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.white.withValues(alpha: 0.95), Colors.white],
-                ),
-              ),
-            ),
-          ),
-
-          // Content panel slides up from bottom
-          Positioned(
-            bottom: 0, left: 0, right: 0,
-            height: MediaQuery.of(context).size.height * 0.58,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(topLeft: Radius.circular(28), topRight: Radius.circular(28)),
-              ),
-              child: SafeArea(
-                top: false,
-                child: FadeTransition(
-                  opacity: _fadeAnim,
-                  child: SlideTransition(
-                    position: _slideAnim,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+          return Stack(
+            children: [
+              // Hero Image (top 44% of local container height)
+              Positioned(
+                top: 0, left: 0, right: 0,
+                height: heroH,
+                child: Image.asset(
+                  widget.heroImage,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          widget.accentColor.withValues(alpha: 0.9),
+                          AppTheme.primaryNavy,
+                          const Color(0xFF0D2B45),
+                        ],
+                      ),
+                    ),
+                    child: Center(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Step dots + skip
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: List.generate(widget.total, (i) => AnimatedContainer(
-                                  duration: const Duration(milliseconds: 350),
-                                  margin: const EdgeInsets.only(right: 6),
-                                  width: i == widget.step - 1 ? 22 : 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: i == widget.step - 1 ? widget.accentColor : const Color(0xFFDDE3EA),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                )),
-                              ),
-                              TextButton(
-                                onPressed: widget.onSkip,
-                                child: Text('Skip', style: GoogleFonts.inter(color: AppTheme.textMedium, fontSize: 13, fontWeight: FontWeight.w600)),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          // Content card
-                          Expanded(child: SingleChildScrollView(child: widget.contentCard)),
-
-                          // Next / CTA button
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 20, top: 8),
-                            child: SizedBox(
-                              width: double.infinity,
-                              height: 52,
-                              child: ElevatedButton(
-                                onPressed: widget.onNext,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: widget.accentColor,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                  elevation: 0,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      widget.step == widget.total ? "Let's Get Started" : 'Continue',
-                                      style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
+                          Icon(Icons.favorite_rounded, color: Colors.white.withValues(alpha: 0.35), size: 70),
+                          const SizedBox(height: 10),
+                          Text('CareBridge AI', style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.6))),
                         ],
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
 
-          // Top safe area nav bar overlay on image
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(20),
+              // Gradient blend overlay over bottom of image
+              Positioned(
+                top: heroH * 0.6,
+                left: 0, right: 0,
+                height: heroH * 0.4,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.white.withValues(alpha: 0.8), Colors.white],
                     ),
-                    child: Row(children: [
-                      const Icon(Icons.favorite_rounded, color: AppTheme.accentTeal, size: 14),
-                      const SizedBox(width: 5),
-                      Text('CareBridge AI', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-                    ]),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text('${widget.step} / ${widget.total}', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white70)),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ],
+
+              // Top Nav Bar overlay (CareBridge AI badge + step counter)
+              Positioned(
+                top: 0, left: 0, right: 0,
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(children: [
+                            const Icon(Icons.favorite_rounded, color: AppTheme.accentTeal, size: 14),
+                            const SizedBox(width: 5),
+                            Text('CareBridge AI', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ]),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text('${widget.step} / ${widget.total}', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white70)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Content Panel Card (bottom 60% of local container height)
+              Positioned(
+                bottom: 0, left: 0, right: 0,
+                height: cardH,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(topLeft: Radius.circular(28), topRight: Radius.circular(28)),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -5)),
+                    ],
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: FadeTransition(
+                      opacity: _fadeAnim,
+                      child: SlideTransition(
+                        position: _slideAnim,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(22, 18, 22, 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Step indicator dots + Skip button
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: List.generate(widget.total, (i) => AnimatedContainer(
+                                      duration: const Duration(milliseconds: 350),
+                                      margin: const EdgeInsets.only(right: 6),
+                                      width: i == widget.step - 1 ? 22 : 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: i == widget.step - 1 ? widget.accentColor : const Color(0xFFDDE3EA),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    )),
+                                  ),
+                                  TextButton(
+                                    onPressed: widget.onSkip,
+                                    child: Text('Skip', style: GoogleFonts.inter(color: AppTheme.textMedium, fontSize: 13, fontWeight: FontWeight.w600)),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 6),
+
+                              // Main content
+                              Expanded(child: SingleChildScrollView(child: widget.contentCard)),
+
+                              const SizedBox(height: 8),
+
+                              // Bottom CTA Button
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton(
+                                  onPressed: widget.onNext,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: widget.accentColor,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                    elevation: 0,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        widget.step == widget.total ? "Let's Get Started" : 'Continue',
+                                        style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
