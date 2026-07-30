@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme.dart';
 import '../../domain/models/clinical_models.dart';
 
@@ -19,26 +20,23 @@ class AIRiskResultScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color bannerBg;
-    Color bannerText;
+    Color bannerText = Colors.white;
     IconData bannerIcon;
     String statusTitle;
 
     switch (ruleResult.overallTier) {
       case RiskTier.URGENT:
         bannerBg = AppTheme.urgentRed;
-        bannerText = Colors.white;
         bannerIcon = Icons.warning_amber_rounded;
         statusTitle = 'RISK STATUS: URGENT';
         break;
       case RiskTier.WATCH:
         bannerBg = AppTheme.watchAmber;
-        bannerText = Colors.white;
         bannerIcon = Icons.visibility_outlined;
         statusTitle = 'RISK STATUS: WATCH';
         break;
       case RiskTier.ROUTINE:
         bannerBg = AppTheme.routineGreen;
-        bannerText = Colors.white;
         bannerIcon = Icons.check_circle_outline;
         statusTitle = 'RISK STATUS: ROUTINE';
         break;
@@ -47,195 +45,185 @@ class AIRiskResultScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
-        title: const Text('15. AI Risk Result (Reason-First)'),
+        title: Text('15. AI Risk Result', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        elevation: 0,
       ),
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
               child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 1. STATUS BAND (Full-Width, Color-Coded)
+                    // 1. High-Impact Status Banner
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
-                      color: bannerBg,
+                      decoration: BoxDecoration(
+                        color: bannerBg,
+                        boxShadow: [BoxShadow(color: bannerBg.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4))],
+                      ),
                       child: Row(
                         children: [
-                          Icon(bannerIcon, color: bannerText, size: 40),
-                          const SizedBox(width: 16),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
+                            child: Icon(bannerIcon, color: bannerText, size: 36),
+                          ),
+                          const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  statusTitle,
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: bannerText,
-                                    letterSpacing: 1.0,
-                                  ),
-                                ),
+                                Text('CRITICAL AI ASSESSMENT', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white70, letterSpacing: 1.1)),
                                 const SizedBox(height: 2),
-                                Text(
-                                  'WHO IMCI / Ghana Health Service Protocol',
-                                  style: TextStyle(fontSize: 12, color: bannerText.withOpacity(0.9)),
-                                ),
+                                Text(statusTitle, style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: bannerText)),
                               ],
                             ),
                           ),
                         ],
                       ),
                     ),
+
+                    const SizedBox(height: 16),
+
+                    // 2. Clinical Reason-First Section
                     Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 2. WHY THIS IS FLAGGED (Reasoning List from reason_template)
-                          const Text(
-                            'WHY THIS IS FLAGGED',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                              color: AppTheme.urgentRed,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: AppTheme.surfaceWhite,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppTheme.cardBorder),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.03),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              children: ruleResult.reasons.map((reason) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 10.0),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Icon(Icons.circle, size: 8, color: AppTheme.urgentRed),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          reason,
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppTheme.primaryNavy,
-                                            height: 1.3,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          // 3. TREND OUTLOOK CARD (Visually & Structurally Separate)
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: AppTheme.watchAmberLight.withOpacity(0.6),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppTheme.watchAmber.withOpacity(0.4)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(children: [
+                                const Icon(Icons.shield_outlined, color: AppTheme.primaryNavy, size: 20),
+                                const SizedBox(width: 8),
+                                Text('WHY THIS IS FLAGGED', style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+                              ]),
+                              const Divider(height: 20),
+                              ...ruleResult.reasons.map((reason) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Icon(Icons.trending_down_rounded, color: AppTheme.watchAmber, size: 22),
-                                    const SizedBox(width: 8),
-                                    const Text(
-                                      'TREND OUTLOOK (Model Advisory)',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.primaryNavy,
-                                      ),
+                                    Container(
+                                      margin: const EdgeInsets.only(top: 4),
+                                      width: 8, height: 8,
+                                      decoration: BoxDecoration(color: bannerBg, shape: BoxShape.circle),
                                     ),
-                                    const Spacer(),
-                                    if (trendResult.probability > 0)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.watchAmber,
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          '${(trendResult.probability * 100).toInt()}% conf.',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(reason, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textDark, height: 1.4)),
+                                    ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  trendResult.summary,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.primaryNavy,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  'Advisory only. Does not change the ${ruleResult.overallTier.name} flag above — that flag is set by the rules engine and cannot be lowered by this model.',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontStyle: FontStyle.italic,
-                                    color: AppTheme.textMedium.withOpacity(0.9),
-                                    height: 1.3,
-                                  ),
+                              )),
+                              if (ruleResult.ghsProtocolCodes.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 6, runSpacing: 6,
+                                  children: ruleResult.ghsProtocolCodes.map((code) => Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryNavy.withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: AppTheme.primaryNavy.withValues(alpha: 0.15)),
+                                    ),
+                                    child: Text('GHS: $code', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+                                  )).toList(),
                                 ),
                               ],
-                            ),
+                            ],
                           ),
-                        ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // 3. Clinical Recommendation Card
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(children: [
+                                const Icon(Icons.medical_services_outlined, color: AppTheme.accentTeal, size: 20),
+                                const SizedBox(width: 8),
+                                Text('CLINICAL RECOMMENDATION', style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.accentTeal)),
+                              ]),
+                              const SizedBox(height: 10),
+                              Text(ruleResult.primaryRecommendation, style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textDark, height: 1.5)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // 4. Trend Outlook (Layer 2 Model Advisory)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Card(
+                        color: Colors.white,
+                        child: Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.trending_down_rounded, color: AppTheme.watchAmber, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text('TREND OUTLOOK (Layer 2 AI)', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.watchAmber)),
+                                  const Spacer(),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(color: AppTheme.watchAmber.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
+                                    child: Text('Model Advisory', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.watchAmber)),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Text(trendResult.summary, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textDark)),
+                              const SizedBox(height: 6),
+                              Text(trendResult.advisoryDisclaimer, style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMedium, fontStyle: FontStyle.italic, height: 1.3)),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            // 4. TWO EQUAL-WEIGHT BUTTONS (Refer & Override)
+
+            // 5. Action Buttons (Refer vs Override with Audit)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
-                color: AppTheme.surfaceWhite,
-                border: Border(top: BorderSide(color: AppTheme.cardBorder)),
+                color: Colors.white,
+                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -2))],
               ),
               child: Row(
                 children: [
                   Expanded(
                     child: SizedBox(
                       height: 50,
-                      child: ElevatedButton(
-                        onPressed: onRefer,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.urgentRed,
+                      child: OutlinedButton(
+                        onPressed: onOverride,
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppTheme.textMedium),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: const Text('Refer', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: Text('Override, add note', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
                       ),
                     ),
                   ),
@@ -243,16 +231,13 @@ class AIRiskResultScreen extends StatelessWidget {
                   Expanded(
                     child: SizedBox(
                       height: 50,
-                      child: OutlinedButton(
-                        onPressed: onOverride,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppTheme.primaryNavy, width: 2),
+                      child: ElevatedButton(
+                        onPressed: onRefer,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: bannerBg,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: const Text(
-                          'Override, add note',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
-                        ),
+                        child: Text('Refer Patient', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
                       ),
                     ),
                   ),

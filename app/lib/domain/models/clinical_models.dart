@@ -25,17 +25,20 @@ class AssessmentInput {
   final bool infantConvulsionsHistory;
   final bool jaundiceEarlyOrYellowPalms;
 
-  // D. Maternal Anaemia
+  // D. Maternal Anaemia & Obstetric Screening
   final double? maternalHb; // g/dL
   final bool conjunctivaPalmarPallorProxy;
+  final bool severeHeadacheVisualDisturbance; // Preeclampsia proxy
+  final bool elevatedBPProxy; // Systolic >= 140 or Diastolic >= 90
 
   // E. Maternal Danger Signs
   final bool vaginalBleeding;
   final bool maternalConvulsions;
   final bool severeHeadacheBlurredVision;
   final bool reducedAbsentFetalMovement;
+  final bool postpartumHeavyBleeding; // PPH warning sign
 
-  // F. Root-Cause System Signal
+  // F. System Overdue Parameters
   final int weeksOverdue;
 
   AssessmentInput({
@@ -48,7 +51,7 @@ class AssessmentInput {
     this.severePalmarPallor = false,
     this.stiffNeck = false,
     this.isYoungInfant = false,
-    this.breathingRate = 40,
+    this.breathingRate = 0,
     this.severeChestIndrawing = false,
     this.noSpontaneousMovement = false,
     this.bodyTemp = 36.8,
@@ -57,42 +60,33 @@ class AssessmentInput {
     this.jaundiceEarlyOrYellowPalms = false,
     this.maternalHb,
     this.conjunctivaPalmarPallorProxy = false,
+    this.severeHeadacheVisualDisturbance = false,
+    this.elevatedBPProxy = false,
     this.vaginalBleeding = false,
     this.maternalConvulsions = false,
     this.severeHeadacheBlurredVision = false,
     this.reducedAbsentFetalMovement = false,
+    this.postpartumHeavyBleeding = false,
     this.weeksOverdue = 0,
-  });
-}
-
-class RuleMatch {
-  final String ruleId;
-  final String domain;
-  final RiskTier tier;
-  final String reasonTemplate;
-  final String formattedReason;
-
-  RuleMatch({
-    required this.ruleId,
-    required this.domain,
-    required this.tier,
-    required this.reasonTemplate,
-    required this.formattedReason,
   });
 }
 
 class ClinicalRuleResult {
   final RiskTier overallTier;
-  final List<RuleMatch> triggeredRules;
   final List<String> reasons;
-  final String timestamp;
+  final List<String> ghsProtocolCodes;
+  final String primaryRecommendation;
+  final String actionSummary;
+  final DateTime evaluatedAt;
 
   ClinicalRuleResult({
     required this.overallTier,
-    required this.triggeredRules,
     required this.reasons,
-    required this.timestamp,
-  });
+    required this.ghsProtocolCodes,
+    required this.primaryRecommendation,
+    required this.actionSummary,
+    DateTime? evaluatedAt,
+  }) : evaluatedAt = evaluatedAt ?? DateTime.now();
 }
 
 class TrendResult {
@@ -123,6 +117,8 @@ class HouseholdModel {
   final int daysOverdue;
   final RiskTier currentRiskTier;
   final int memberCount;
+  final double priorityScore; // Calculated 0-100 algorithmic score
+  final double muacVelocityCmPerWeek;
 
   HouseholdModel({
     required this.id,
@@ -135,6 +131,8 @@ class HouseholdModel {
     required this.daysOverdue,
     required this.currentRiskTier,
     required this.memberCount,
+    this.priorityScore = 50.0,
+    this.muacVelocityCmPerWeek = 0.0,
   });
 }
 
@@ -146,6 +144,7 @@ class MemberModel {
   final int ageMonths;
   final double? latestMuacCm;
   final RiskTier riskStatus;
+  final bool isTeenagePregnancy;
 
   MemberModel({
     required this.id,
@@ -155,5 +154,6 @@ class MemberModel {
     required this.ageMonths,
     this.latestMuacCm,
     required this.riskStatus,
+    this.isTeenagePregnancy = false,
   });
 }

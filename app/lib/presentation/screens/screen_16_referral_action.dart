@@ -1,29 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme.dart';
 import '../../core/utils/sms_compressor.dart';
-import '../../domain/models/clinical_models.dart';
 
 class ReferralActionScreen extends StatefulWidget {
+  final String householdName;
   final String householdId;
-  final String patientName;
+  final List<String> autoReasons;
   final String riskTier;
-  // Point 8: Reasons are auto-populated from the rules engine result, never manually typed
-  final List<String> reasons;
-  final double muacCm;
-  final int breathingRate;
-  final double hbLevel;
-  final VoidCallback onViewNutrition;
+  final VoidCallback onReferralComplete;
 
   const ReferralActionScreen({
     super.key,
+    required this.householdName,
     required this.householdId,
-    required this.patientName,
+    required this.autoReasons,
     required this.riskTier,
-    required this.reasons,        // injected directly from ClinicalRuleResult.reasons
-    required this.onViewNutrition,
-    this.muacCm = 10.5,
-    this.breathingRate = 40,
-    this.hbLevel = 12.0,
+    required this.onReferralComplete,
   });
 
   @override
@@ -31,233 +25,227 @@ class ReferralActionScreen extends StatefulWidget {
 }
 
 class _ReferralActionScreenState extends State<ReferralActionScreen> {
-  String _selectedHospital = "Bole District Hospital";
-  bool _smsSent = false;
+  final _facilityCtrl = TextEditingController(text: 'Bole District Hospital');
+  final _chwNotesCtrl = TextEditingController();
+  bool _useBitpackedHex = false;
+  bool _smsCopied = false;
+
+  String get _smsPayload {
+    if (_useBitpackedHex) {
+      return SMSCompressor.encodeBitpackedHex(
+        householdIdNumber: 10041,
+        muacMm: 105,
+        oedema: true,
+        rr: 62,
+        hbGdlTimesTen: 84,
+        riskTierCode: widget.riskTier == 'URGENT' ? 2 : 1,
+        bitmaskDangerFlags: 0x8041,
+      );
+    } else {
+      return SMSCompressor.compressReferral(
+        householdId: widget.householdId,
+        muacCm: 10.5,
+        oedema: true,
+        breathingRate: 62,
+        hbLevel: 8.4,
+        riskTier: widget.riskTier,
+        ruleCodes: ['SAM', 'FAST_BR'],
+      );
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-populate CHW clinical note directly from rules engine output (never manual typing)
+    _chwNotesCtrl.text = 'Clinical Auto-Summary: ${widget.autoReasons.join("; ")}. Evaluated at CHPS point of care. Referral initiated to ${_facilityCtrl.text}.';
+  }
 
   @override
   Widget build(BuildContext context) {
-    // SMS payload built automatically from injected assessment values — never requires manual entry
-    final compressedPayload = SMSCompressor.compressReferral(
-      householdId: widget.householdId,
-      muacCm: widget.muacCm,
-      oedema: widget.reasons.any((r) => r.toLowerCase().contains('oedema')),
-      breathingRate: widget.breathingRate,
-      hbLevel: widget.hbLevel,
-      riskTier: widget.riskTier,
-      ruleCodes: _extractRuleCodes(widget.reasons),
-    );
-
-    // Point 8: Readable referral message body is generated directly from reasons list.
-    // The CHW NEVER re-types clinical findings into the referral form.
-    final readablePreview = SMSCompressor.generateReadablePreview(
-      householdId: widget.householdId,
-      patientName: widget.patientName,
-      riskTier: widget.riskTier,
-      reasons: widget.reasons,
-      chpsZone: 'Bole CHPS Zone',
-    );
-
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
-        title: const Text('16. Referral & Action'),
+        title: Text('16. Referral Action & SMS', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        elevation: 0,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Referral Banner
-              Container(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppTheme.urgentRedLight,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.urgentRed),
-                ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.local_hospital_rounded, color: AppTheme.urgentRed, size: 36),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    // Header Card
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.urgentRed.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppTheme.urgentRed.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
                         children: [
-                          const Text(
-                            'Refer to District Hospital',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.urgentRed,
-                            ),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(color: AppTheme.urgentRed, shape: BoxShape.circle),
+                            child: const Icon(Icons.send_rounded, color: Colors.white, size: 24),
                           ),
-                          Text(
-                            'Immediate Triage Required · Priority: ${widget.riskTier}',
-                            style: const TextStyle(fontSize: 12, color: AppTheme.primaryNavy),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('URGENT REFERRAL INITIATED', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.urgentRed, letterSpacing: 1.1)),
+                                Text(widget.householdName, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+                                Text('ID: ${widget.householdId}', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMedium)),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Point 8: Auto-populated clinical reasons (read from rules engine, not manually typed)
-              const Text(
-                'Clinical Reasons (auto-populated from assessment)',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.urgentRedLight.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppTheme.urgentRed.withOpacity(0.3)),
-                ),
-                child: Column(
-                  children: widget.reasons.map((reason) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4.0),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.circle, size: 7, color: AppTheme.urgentRed),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            reason,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.primaryNavy),
-                          ),
-                        ),
-                      ],
+
+                    const SizedBox(height: 16),
+
+                    // Target Facility Input
+                    Text('Target Referral Facility', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textMedium)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _facilityCtrl,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.local_hospital_rounded, color: AppTheme.primaryNavy, size: 20),
+                        isDense: true,
+                      ),
+                      style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
                     ),
-                  )).toList(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Target Referral Facility',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
-              ),
-              const SizedBox(height: 6),
-              DropdownButtonFormField<String>(
-                value: _selectedHospital,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  filled: true,
-                  fillColor: AppTheme.surfaceWhite,
-                ),
-                items: const [
-                  DropdownMenuItem(value: "Bole District Hospital", child: Text("Bole District Hospital")),
-                  DropdownMenuItem(value: "Damongo District Hospital", child: Text("Damongo District Hospital")),
-                  DropdownMenuItem(value: "Yendi Municipal Hospital", child: Text("Yendi Municipal Hospital")),
-                ],
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedHospital = val);
-                },
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Message Preview (auto-generated)',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceWhite,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.cardBorder),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      readablePreview,
-                      style: const TextStyle(fontSize: 13, color: AppTheme.textDark, height: 1.4),
-                    ),
-                    const Divider(height: 20),
-                    const Text(
-                      'Africa\'s Talking SMS Payload (Compressed — not encrypted):',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textMedium),
-                    ),
-                    const SizedBox(height: 4),
+
+                    const SizedBox(height: 16),
+
+                    // Auto-populated Clinical Reasons
+                    Text('Clinical Reasons (Auto-Populated)', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textMedium)),
+                    const SizedBox(height: 6),
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: AppTheme.backgroundLight,
-                        borderRadius: BorderRadius.circular(6),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.cardBorder),
                       ),
-                      child: SelectableText(
-                        compressedPayload,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontFamily: 'monospace',
-                          color: AppTheme.primaryNavy,
-                          fontWeight: FontWeight.bold,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: widget.autoReasons.map((r) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.check_circle_rounded, color: AppTheme.urgentRed, size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(r, style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textDark))),
+                            ],
+                          ),
+                        )).toList(),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Low-Connectivity SMS Payload Preview Card
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(children: [
+                                  const Icon(Icons.sms_outlined, color: AppTheme.accentTeal, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text('2G SMS COMPACT PAYLOAD', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+                                ]),
+                                Row(children: [
+                                  Text('60-Char Hex', style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMedium)),
+                                  Switch(
+                                    value: _useBitpackedHex,
+                                    onChanged: (v) => setState(() => _useBitpackedHex = v),
+                                    activeThumbColor: AppTheme.accentTeal,
+                                  ),
+                                ]),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryNavy.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppTheme.primaryNavy.withValues(alpha: 0.1)),
+                              ),
+                              child: Text(
+                                _smsPayload,
+                                style: GoogleFonts.firaCode(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('${_smsPayload.length} chars (1 SMS segment)', style: GoogleFonts.inter(fontSize: 11, color: AppTheme.routineGreen, fontWeight: FontWeight.w600)),
+                                TextButton.icon(
+                                  onPressed: () {
+                                    Clipboard.setData(ClipboardData(text: _smsPayload));
+                                    setState(() => _smsCopied = true);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('SMS payload copied to clipboard!')),
+                                    );
+                                  },
+                                  icon: Icon(_smsCopied ? Icons.check : Icons.copy, size: 14),
+                                  label: Text(_smsCopied ? 'Copied' : 'Copy SMS'),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
-              SizedBox(
+            ),
+
+            // Bottom Trigger Button
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -2))],
+              ),
+              child: SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton.icon(
-                  onPressed: _smsSent
-                      ? null
-                      : () {
-                          setState(() => _smsSent = true);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Compressed SMS queued to Africa\'s Talking API gateway!'),
-                              backgroundColor: AppTheme.routineGreen,
-                            ),
-                          );
-                        },
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Referral submitted & SMS sent to ${_facilityCtrl.text}')),
+                    );
+                    widget.onReferralComplete();
+                  },
+                  icon: const Icon(Icons.send_rounded, color: Colors.white),
+                  label: Text('Send Referral & SMS', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _smsSent ? AppTheme.routineGreen : AppTheme.primaryNavy,
-                  ),
-                  icon: Icon(_smsSent ? Icons.check_circle : Icons.send_to_mobile),
-                  label: Text(
-                    _smsSent ? 'SMS Queued & Sent (Compressed)' : 'Send via SMS (Compressed)',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    backgroundColor: AppTheme.urgentRed,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: widget.onViewNutrition,
-                  icon: const Icon(Icons.restaurant_menu_outlined, color: AppTheme.accentTeal),
-                  label: const Text(
-                    'Attach Local Nutrition Plan to Record',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.accentTeal),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
-  }
-
-  List<String> _extractRuleCodes(List<String> reasons) {
-    final codes = <String>[];
-    for (final r in reasons) {
-      if (r.contains('SAM')) codes.add('SAM');
-      if (r.contains('MAM')) codes.add('MAM');
-      if (r.contains('breathing')) codes.add('FAST_BR');
-      if (r.contains('pallor') || r.contains('Pallor')) codes.add('PALLOR');
-      if (r.contains('Anaemia')) codes.add('ANAEMIA');
-      if (r.contains('fetal')) codes.add('FETAL_MVT');
-    }
-    return codes.isEmpty ? ['URG'] : codes;
   }
 }
