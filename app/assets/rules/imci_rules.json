@@ -1,0 +1,195 @@
+{
+  "engine_version": "2.1.0",
+  "source": "WHO IMCI + Ghana Health Service SAM Protocol",
+  "domains": [
+    {
+      "id": "A",
+      "name": "Child Malnutrition (6-59m)",
+      "rules": [
+        {
+          "id": "RULE_A1_SAM_MUAC",
+          "condition": "muac_cm < 11.5",
+          "tier": "URGENT",
+          "reason_template": "MUAC {muac} cm \u2014 Severe Acute Malnutrition (SAM)"
+        },
+        {
+          "id": "RULE_A2_MAM_MUAC",
+          "condition": "11.5 <= muac_cm <= 12.5",
+          "tier": "WATCH",
+          "reason_template": "MUAC {muac} cm \u2014 Moderate Acute Malnutrition (MAM)"
+        },
+        {
+          "id": "RULE_A3_OEDEMA_SAM",
+          "condition": "bilateral_oedema == true",
+          "tier": "URGENT",
+          "reason_template": "Bilateral pitting oedema present \u2014 Severe Acute Malnutrition (SAM)"
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "name": "Child General Danger Signs (Under 5)",
+      "override_all": true,
+      "rules": [
+        {
+          "id": "RULE_B1_CONVULSIONS",
+          "condition": "convulsions == true",
+          "tier": "URGENT",
+          "reason_template": "History of convulsions during current illness"
+        },
+        {
+          "id": "RULE_B2_UNABLE_TO_FEED",
+          "condition": "unable_to_drink_breastfeed == true",
+          "tier": "URGENT",
+          "reason_template": "Unable to drink or breastfeed"
+        },
+        {
+          "id": "RULE_B3_VOMITS_EVERYTHING",
+          "condition": "vomits_everything == true",
+          "tier": "URGENT",
+          "reason_template": "Vomits everything consumed"
+        },
+        {
+          "id": "RULE_B4_LETHARGIC",
+          "condition": "lethargic_or_unconscious == true",
+          "tier": "URGENT",
+          "reason_template": "Lethargic or unconscious state"
+        },
+        {
+          "id": "RULE_B5_SEVERE_PALMAR_PALLOR",
+          "condition": "severe_palmar_pallor == true",
+          "tier": "URGENT",
+          "reason_template": "Severe palmar pallor observed"
+        },
+        {
+          "id": "RULE_B6_STIFF_NECK",
+          "condition": "stiff_neck == true",
+          "tier": "URGENT",
+          "reason_template": "Stiff neck detected"
+        }
+      ]
+    },
+    {
+      "id": "C",
+      "name": "Young Infant Danger Signs (Under 2 months)",
+      "override_all": true,
+      "rules": [
+        {
+          "id": "RULE_C1_FAST_BREATHING",
+          "condition": "breathing_rate > 60",
+          "tier": "URGENT",
+          "reason_template": "Fast breathing ({rr}/min > 60/min) in young infant"
+        },
+        {
+          "id": "RULE_C2_CHEST_INDRAWING",
+          "condition": "severe_chest_indrawing == true",
+          "tier": "URGENT",
+          "reason_template": "Severe chest in-drawing observed"
+        },
+        {
+          "id": "RULE_C3_NO_MOVEMENT",
+          "condition": "no_spontaneous_movement == true",
+          "tier": "URGENT",
+          "reason_template": "No spontaneous movement detected"
+        },
+        {
+          "id": "RULE_C4_FEVER",
+          "condition": "body_temp >= 37.5",
+          "tier": "URGENT",
+          "reason_template": "Fever ({temp}\u00b0C \u2265 37.5\u00b0C) in young infant"
+        },
+        {
+          "id": "RULE_C5_HYPOTHERMIA",
+          "condition": "body_temp < 35.5",
+          "tier": "URGENT",
+          "reason_template": "Low body temperature ({temp}\u00b0C < 35.5\u00b0C)"
+        },
+        {
+          "id": "RULE_C6_NOT_FEEDING",
+          "condition": "not_feeding_well == true",
+          "tier": "URGENT",
+          "reason_template": "Not feeding well"
+        },
+        {
+          "id": "RULE_C7_INFANT_CONVULSIONS",
+          "condition": "infant_convulsions_history == true",
+          "tier": "URGENT",
+          "reason_template": "History of convulsions in young infant"
+        },
+        {
+          "id": "RULE_C8_JAUNDICE",
+          "condition": "jaundice_early_or_yellow_palms == true",
+          "tier": "URGENT",
+          "reason_template": "Jaundice within 24h or yellow palms/soles"
+        }
+      ]
+    },
+    {
+      "id": "D",
+      "name": "Maternal Anaemia",
+      "rules": [
+        {
+          "id": "RULE_D1_SEVERE_ANAEMIA",
+          "condition": "maternal_hb < 7.0",
+          "tier": "URGENT",
+          "reason_template": "Maternal Hb {hb} g/dL \u2014 Severe Anaemia"
+        },
+        {
+          "id": "RULE_D2_MODERATE_ANAEMIA",
+          "condition": "7.0 <= maternal_hb <= 10.0",
+          "tier": "WATCH",
+          "reason_template": "Maternal Hb {hb} g/dL \u2014 Moderate Anaemia"
+        },
+        {
+          "id": "RULE_D3_PALLOR_PROXY",
+          "condition": "conjunctiva_palmar_pallor_proxy == true",
+          "tier": "WATCH",
+          "reason_template": "Conjunctiva / Palmar Pallor observed (No Hb meter available)"
+        }
+      ]
+    },
+    {
+      "id": "E",
+      "name": "Maternal Danger Signs",
+      "override_all": true,
+      "rules": [
+        {
+          "id": "RULE_E1_VAGINAL_BLEEDING",
+          "condition": "vaginal_bleeding == true",
+          "tier": "URGENT",
+          "reason_template": "Vaginal bleeding reported / observed"
+        },
+        {
+          "id": "RULE_E2_MATERNAL_CONVULSIONS",
+          "condition": "maternal_convulsions == true",
+          "tier": "URGENT",
+          "reason_template": "Maternal convulsions reported / observed"
+        },
+        {
+          "id": "RULE_E3_HEADACHE_VISION",
+          "condition": "severe_headache_blurred_vision == true",
+          "tier": "URGENT",
+          "reason_template": "Severe headache or blurred vision"
+        },
+        {
+          "id": "RULE_E4_FETAL_MOVEMENT",
+          "condition": "reduced_absent_fetal_movement == true",
+          "tier": "URGENT",
+          "reason_template": "Reduced or absent fetal movement"
+        }
+      ]
+    },
+    {
+      "id": "F",
+      "name": "Root-Cause System Signal",
+      "rules": [
+        {
+          "id": "RULE_F1_OVERDUE_VISIT",
+          "condition": "weeks_overdue >= 3",
+          "tier": "WATCH",
+          "reason_template": "Overdue visit \u2014 {weeks} weeks since last household contact"
+        }
+      ]
+    }
+  ]
+}
