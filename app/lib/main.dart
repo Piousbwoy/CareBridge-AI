@@ -224,14 +224,16 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         type: BottomNavigationBarType.fixed,
         selectedItemColor: AppTheme.primaryNavy,
         unselectedItemColor: AppTheme.textMedium,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+        selectedLabelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 11),
+        unselectedLabelStyle: GoogleFonts.inter(fontSize: 10),
         onTap: (index) {
           setState(() {
             _selectedTabIndex = index;
-            if (index == 1 && _assessmentStep == 0) _assessmentStep = 1;
+            if (index == 2 && _assessmentStep == 0) _assessmentStep = 1;
           });
         },
         items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.format_list_numbered_rounded), label: 'Visits'),
           BottomNavigationBarItem(icon: Icon(Icons.add_task_rounded), label: 'Assess'),
           BottomNavigationBarItem(icon: Icon(Icons.local_hospital_outlined), label: 'Referrals'),
@@ -243,12 +245,198 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
 
   Widget _buildBodyForCurrentTab() {
     switch (_selectedTabIndex) {
-      case 0: return _buildVisitsTabFlow();
-      case 1: return _buildAssessmentTabFlow();
-      case 2: return _buildReferralScreen();
-      case 3:
+      case 0: return _buildHomeScreen();
+      case 1: return _buildVisitsTabFlow();
+      case 2: return _buildAssessmentTabFlow();
+      case 3: return _buildReferralScreen();
+      case 4:
       default: return SyncStatusScreen(onLogout: widget.onLogout);
     }
+  }
+
+  Widget _buildHomeScreen() {
+    final repo = MockRepository();
+    final urgentCount = repo.households.where((h) => h.currentRiskTier == RiskTier.URGENT).length;
+    final watchCount = repo.households.where((h) => h.currentRiskTier == RiskTier.WATCH).length;
+
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundLight,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // CHO Header Card
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryNavy,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(color: AppTheme.primaryNavy.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 4))],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Good Morning,', style: GoogleFonts.inter(fontSize: 12, color: Colors.white70)),
+                            Text(repo.chwName, style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(color: AppTheme.accentTeal, borderRadius: BorderRadius.circular(8)),
+                          child: Text('CHO Active', style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on_rounded, color: AppTheme.accentTeal, size: 16),
+                        const SizedBox(width: 4),
+                        Text(repo.chwZone, style: GoogleFonts.inter(fontSize: 12, color: Colors.white70)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Urgent Alert Banner if urgent households exist
+              if (urgentCount > 0)
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppTheme.urgentRed.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.urgentRed.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: AppTheme.urgentRed, size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('URGENT TRIAGE ATTENTION REQUIRED', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.urgentRed, letterSpacing: 1.0)),
+                            Text('$urgentCount household(s) flagged for immediate SAM/maternal intervention.', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textDark)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              const SizedBox(height: 16),
+
+              // Summary Metric Cards
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.urgentRed.withValues(alpha: 0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('URGENT', style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.urgentRed)),
+                          const SizedBox(height: 4),
+                          Text('$urgentCount', style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.urgentRed)),
+                          Text('Critical Risk', style: GoogleFonts.inter(fontSize: 10, color: AppTheme.textMedium)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.watchAmber.withValues(alpha: 0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('WATCH', style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.watchAmber)),
+                          const SizedBox(height: 4),
+                          Text('$watchCount', style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.watchAmber)),
+                          Text('Follow-up', style: GoogleFonts.inter(fontSize: 10, color: AppTheme.textMedium)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.accentTeal.withValues(alpha: 0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('QUEUE', style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.accentTeal)),
+                          const SizedBox(height: 4),
+                          Text('${_syncQueue.pendingCount}', style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.accentTeal)),
+                          Text('Offline 2G', style: GoogleFonts.inter(fontSize: 10, color: AppTheme.textMedium)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // Quick Action Navigation Buttons
+              Text('QUICK ACTIONS', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+              const SizedBox(height: 10),
+
+              _HomeActionTile(
+                icon: Icons.format_list_numbered_rounded,
+                title: 'Prioritized Visits List',
+                subtitle: 'View households ordered by 0-100 priority score & overdue decay',
+                color: AppTheme.primaryNavy,
+                onTap: () => setState(() => _selectedTabIndex = 1),
+              ),
+              _HomeActionTile(
+                icon: Icons.add_task_rounded,
+                title: 'Start New Clinical Assessment',
+                subtitle: 'Run 26-parameter WHO IMCI / GHS triage at point of care',
+                color: AppTheme.accentTeal,
+                onTap: () => setState(() {
+                  _selectedTabIndex = 2;
+                  _assessmentStep = 1;
+                }),
+              ),
+              _HomeActionTile(
+                icon: Icons.local_hospital_outlined,
+                title: 'Urgent Referrals & 2G SMS',
+                subtitle: 'Generate sub-60 char bit-packed payloads for remote facilities',
+                color: AppTheme.urgentRed,
+                onTap: () => setState(() => _selectedTabIndex = 3),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildVisitsTabFlow() {
@@ -355,5 +543,46 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
           onFinishToHome: () => setState(() { _selectedTabIndex = 0; _assessmentStep = 0; }),
         );
     }
+  }
+}
+
+class _HomeActionTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _HomeActionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.cardBorder),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6)],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        leading: Container(
+          width: 44, height: 44,
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        title: Text(title, style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+        subtitle: Text(subtitle, style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMedium)),
+        trailing: const Icon(Icons.chevron_right_rounded, color: AppTheme.textMedium),
+        onTap: onTap,
+      ),
+    );
   }
 }
