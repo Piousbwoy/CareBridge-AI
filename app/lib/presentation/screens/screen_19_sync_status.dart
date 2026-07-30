@@ -141,7 +141,7 @@ class _SyncStatusScreenState extends State<SyncStatusScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
-        title: Text('19–21. Sync & Profile Settings', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        title: Text('Sync & Settings', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
         elevation: 0,
       ),
       body: SafeArea(
@@ -168,7 +168,7 @@ class _SyncStatusScreenState extends State<SyncStatusScreen> {
                   ),
                   Expanded(
                     child: _TabButton(
-                      label: 'Profile & Settings',
+                      label: 'Settings',
                       icon: Icons.tune_rounded,
                       isSelected: _activeSubTab == 1,
                       onTap: () => setState(() => _activeSubTab = 1),
@@ -369,7 +369,7 @@ class _SyncStatusScreenState extends State<SyncStatusScreen> {
         const SizedBox(height: 14),
 
         // Encrypted Storage & Data Options
-        Text('DATA & STORAGE RESILIENCE', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy, letterSpacing: 0.5)),
+        Text('SYNC SETTINGS', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy, letterSpacing: 0.5)),
         const SizedBox(height: 8),
 
         Card(
@@ -379,14 +379,12 @@ class _SyncStatusScreenState extends State<SyncStatusScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(children: [
-                      const Icon(Icons.shield_rounded, color: AppTheme.routineGreen, size: 18),
-                      const SizedBox(width: 8),
-                      Text('SQLCipher Encrypted Database', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
-                    ]),
-                    Text('1.2 / 5.0 GB', style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMedium)),
+                    const Icon(Icons.settings_rounded, color: AppTheme.accentTeal, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Sync Settings', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy), overflow: TextOverflow.ellipsis),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
