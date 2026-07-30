@@ -333,7 +333,7 @@ class _HouseholdCard extends StatelessWidget {
                         children: [
                           const Icon(Icons.maps_home_work_outlined, size: 14, color: AppTheme.textMedium),
                           const SizedBox(width: 4),
-                          Text('${household.subZone} · ${household.householdCode}', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMedium)),
+                          Text('${household.address} · ${household.id}', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMedium)),
                           const Spacer(),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

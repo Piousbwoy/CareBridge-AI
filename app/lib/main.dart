@@ -4,11 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'core/theme.dart';
 import 'data/mock_repository.dart';
+import 'data/sync_queue_service.dart';
 import 'domain/models/clinical_models.dart';
 import 'domain/rules/imci_rules_engine.dart';
-import 'domain/rules/muac_trend_classifier.dart';
-import 'core/services/sync_queue_service.dart';
-import 'core/services/override_audit_log.dart';
+import 'domain/ai/muac_trend_classifier.dart';
 
 import 'presentation/screens/screen_1_splash.dart';
 import 'presentation/screens/screen_2_onboarding_welcome.dart';
@@ -16,7 +15,7 @@ import 'presentation/screens/screen_6_signin.dart';
 import 'presentation/screens/screen_7_create_account.dart';
 import 'presentation/screens/screen_8_pin_login.dart';
 import 'presentation/screens/screen_10_prioritized_visits.dart';
-import 'presentation/screens/screen_11_household_triage_detail.dart';
+import 'presentation/screens/screen_11_household_details.dart';
 import 'presentation/screens/screen_12_child_assessment.dart';
 import 'presentation/screens/screen_13_young_infant_assessment.dart';
 import 'presentation/screens/screen_14_maternal_assessment.dart';
@@ -153,7 +152,8 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
 
   // Services
   final _syncQueue = SyncQueueService();
-  final _overrideLog = OverrideAuditLog();
+  // ignore: unused_field
+  final _overrideLog = <String>[];
 
   @override
   void initState() {
@@ -484,10 +484,10 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     }
 
     // Step 1: Household detail
-    return HouseholdTriageDetailScreen(
+    return HouseholdDetailsScreen(
       household: _selectedHousehold!,
       onBack: () => setState(() => _assessmentStep = 0),
-      onStartAssessment: () => setState(() => _assessmentStep = 2), // Child assessment
+      onStartAssessment: () => setState(() => _assessmentStep = 2),
     );
   }
 
@@ -497,54 +497,53 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       case 1:
       case 2:
         return ChildAssessmentScreen(
-          householdName: _selectedHousehold?.name ?? 'Akua Serwaa',
           initialMuac: _muac,
-          initialBilateralOedema: _oedema,
-          onComplete: (muac, oedema, dangerSigns) {
+          initialOedema: _oedema,
+          initialDangerSigns: _childDanger,
+          onNext: (muac, oedema, dangerSigns) {
             setState(() {
               _muac = muac;
               _oedema = oedema;
               _childDanger = dangerSigns;
-              _assessmentStep = 2; // Move to Young Infant
+              _assessmentStep = 2;
             });
           },
-          onNextTab: () => setState(() => _assessmentStep = 2),
         );
       case 2:
         return YoungInfantAssessmentScreen(
-          initialRr: _rr,
+          initialBreathingRate: _rr,
           initialTemp: _temp,
-          onComplete: (rr, temp, dangerSigns) {
+          initialInfantSigns: _infantDanger,
+          onNext: (rr, temp, infantSigns) {
             setState(() {
               _rr = rr;
               _temp = temp;
-              _infantDanger = dangerSigns;
-              _assessmentStep = 3; // Move to Maternal
+              _infantDanger = infantSigns;
+              _assessmentStep = 3;
             });
           },
-          onNextTab: () => setState(() => _assessmentStep = 3),
         );
       case 3:
         return MaternalAssessmentScreen(
           initialHb: _hb,
           initialPallorProxy: _pallorProxy,
-          onComplete: (hb, pallorProxy, maternalDanger) {
+          initialMaternalSigns: _maternalDanger,
+          onRunRulesEngine: (hb, pallorProxy, maternalSigns) {
             setState(() {
               _hb = hb;
               _pallorProxy = pallorProxy;
-              _maternalDanger = maternalDanger;
-            });
-            _runAIEngine(); // Evaluate offline AI engine & navigate to results (Step 4)
-          },
-          onCompleteAssessment: (hb, pallorProxy, maternalDanger) {
-            setState(() {
-              _hb = hb;
-              _pallorProxy = pallorProxy;
-              _maternalDanger = maternalDanger;
+              _maternalDanger = maternalSigns;
             });
             _runAIEngine();
           },
-          onNextTab: () => _runAIEngine(),
+          onCompleteAssessment: (hb, pallorProxy, maternalSigns) {
+            setState(() {
+              _hb = hb;
+              _pallorProxy = pallorProxy;
+              _maternalDanger = maternalSigns;
+            });
+            _runAIEngine();
+          },
         );
       case 4:
         return AICareRecommendationsScreen(
