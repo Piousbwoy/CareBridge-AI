@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'core/theme.dart';
 import 'data/mock_repository.dart';
 import 'data/sync_queue_service.dart';
