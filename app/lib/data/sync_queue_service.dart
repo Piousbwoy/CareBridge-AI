@@ -54,8 +54,8 @@ class SyncQueueService {
   }
 
   /// Point 9: Fires automatically when connectivity returns — called by ConnectivityPlus stream listener
-  Future<void> attemptAutoSync({String chwId = 'CHW-001', String chpsZone = 'Bole CHPS Zone'}) async {
-    if (_pendingQueue.isEmpty || _isSyncing) return;
+  Future<bool> attemptAutoSync({String chwId = 'CHW-001', String chpsZone = 'Bole CHPS Zone'}) async {
+    if (_pendingQueue.isEmpty || _isSyncing) return false;
 
     _isSyncing = true;
     if (kDebugMode) print('🔄 Auto-sync triggered: uploading ${_pendingQueue.length} queued records...');
@@ -78,12 +78,15 @@ class SyncQueueService {
         _pendingQueue.clear();
         _lastSyncTime = DateTime.now();
         if (kDebugMode) print('✅ Sync complete: $count records uploaded.');
+        return true;
       } else {
         if (kDebugMode) print('⚠️ Sync failed with status ${response.statusCode}. Queue retained.');
+        return false;
       }
     } catch (e) {
       // Network unavailable — queue retained, will retry on next connectivity event
       if (kDebugMode) print('⚠️ Sync attempt failed (offline): $e. Records remain queued.');
+      return false;
     } finally {
       _isSyncing = false;
     }
