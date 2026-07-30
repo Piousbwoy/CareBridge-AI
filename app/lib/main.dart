@@ -115,7 +115,7 @@ class _CareBridgeAppState extends State<CareBridgeApp> {
         return PinLoginScreen(onPinSuccess: () => setState(() => _currentStep = 'MAIN_APP'));
       case 'MAIN_APP':
       default:
-        return MainNavigationShell(onLogout: () => setState(() => _currentStep = 'PIN_LOGIN'));
+        return MainNavigationShell(onLogout: () => setState(() => _currentStep = 'SIGNIN'));
     }
   }
 }
