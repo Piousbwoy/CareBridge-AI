@@ -50,8 +50,4 @@ flutter:
     # Clinical rules config (JSON) for version-controlled rule definitions
     - assets/rules/imci_rules.json
     # Hero images for splash and onboarding screens
-    - assets/images/splash_hero.png
-    - assets/images/onboarding_1.png
-    - assets/images/onboarding_2.png
-    - assets/images/onboarding_3.png
-    - assets/images/onboarding_4.png
+    - assets/images/
