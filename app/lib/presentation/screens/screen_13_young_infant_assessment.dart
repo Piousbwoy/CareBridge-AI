@@ -8,15 +8,15 @@ class YoungInfantAssessmentScreen extends StatefulWidget {
   final double initialTemp;
   final Map<String, bool> initialInfantSigns;
   final Function(int rr, double temp, Map<String, bool> infantSigns) onNext;
-  final VoidCallback onBack;
+  final VoidCallback? onBack;
 
   const YoungInfantAssessmentScreen({
     super.key,
-    required this.initialBreathingRate,
-    required this.initialTemp,
-    required this.initialInfantSigns,
+    this.initialBreathingRate = 40,
+    this.initialTemp = 36.8,
+    this.initialInfantSigns = const {},
     required this.onNext,
-    required this.onBack,
+    this.onBack,
   });
 
   @override
@@ -51,7 +51,7 @@ class _YoungInfantAssessmentScreenState extends State<YoungInfantAssessmentScree
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
         title: Text('13. Young Infant (< 2 Months)', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: widget.onBack),
+        leading: widget.onBack != null ? IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: widget.onBack) : null,
       ),
       body: SafeArea(
         child: Column(

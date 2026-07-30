@@ -82,11 +82,16 @@ class ClinicalRuleResult {
   ClinicalRuleResult({
     required this.overallTier,
     required this.reasons,
-    required this.ghsProtocolCodes,
-    required this.primaryRecommendation,
-    required this.actionSummary,
+    List<String>? ghsProtocolCodes,
+    List<dynamic>? triggeredRules,
+    String? primaryRecommendation,
+    String? actionSummary,
+    String? timestamp,
     DateTime? evaluatedAt,
-  }) : evaluatedAt = evaluatedAt ?? DateTime.now();
+  })  : ghsProtocolCodes = ghsProtocolCodes ?? [],
+        primaryRecommendation = primaryRecommendation ?? 'Follow standard GHS CHPS clinical protocols.',
+        actionSummary = actionSummary ?? 'Triage Complete',
+        evaluatedAt = evaluatedAt ?? DateTime.now();
 }
 
 class TrendResult {

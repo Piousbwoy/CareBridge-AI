@@ -6,18 +6,30 @@ import '../../core/utils/sms_compressor.dart';
 
 class ReferralActionScreen extends StatefulWidget {
   final String householdName;
+  final String? patientName;
   final String householdId;
-  final List<String> autoReasons;
+  final List<String>? autoReasons;
+  final List<String>? reasons;
   final String riskTier;
-  final VoidCallback onReferralComplete;
+  final double? muacCm;
+  final int? breathingRate;
+  final double? hbLevel;
+  final VoidCallback? onReferralComplete;
+  final VoidCallback? onViewNutrition;
 
   const ReferralActionScreen({
     super.key,
-    required this.householdName,
+    this.householdName = 'Akua Serwaa',
+    this.patientName,
     required this.householdId,
-    required this.autoReasons,
+    this.autoReasons,
+    this.reasons,
     required this.riskTier,
-    required this.onReferralComplete,
+    this.muacCm,
+    this.breathingRate,
+    this.hbLevel,
+    this.onReferralComplete,
+    this.onViewNutrition,
   });
 
   @override
@@ -30,24 +42,27 @@ class _ReferralActionScreenState extends State<ReferralActionScreen> {
   bool _useBitpackedHex = false;
   bool _smsCopied = false;
 
+  String get displayName => widget.patientName ?? widget.householdName;
+  List<String> get displayReasons => widget.autoReasons ?? widget.reasons ?? ['MUAC 10.5cm — SAM'];
+
   String get _smsPayload {
     if (_useBitpackedHex) {
       return SMSCompressor.encodeBitpackedHex(
         householdIdNumber: 10041,
-        muacMm: 105,
+        muacMm: ((widget.muacCm ?? 10.5) * 10).round(),
         oedema: true,
-        rr: 62,
-        hbGdlTimesTen: 84,
+        rr: widget.breathingRate ?? 62,
+        hbGdlTimesTen: ((widget.hbLevel ?? 8.4) * 10).round(),
         riskTierCode: widget.riskTier == 'URGENT' ? 2 : 1,
         bitmaskDangerFlags: 0x8041,
       );
     } else {
       return SMSCompressor.compressReferral(
         householdId: widget.householdId,
-        muacCm: 10.5,
+        muacCm: widget.muacCm ?? 10.5,
         oedema: true,
-        breathingRate: 62,
-        hbLevel: 8.4,
+        breathingRate: widget.breathingRate ?? 62,
+        hbLevel: widget.hbLevel ?? 8.4,
         riskTier: widget.riskTier,
         ruleCodes: ['SAM', 'FAST_BR'],
       );
@@ -57,8 +72,15 @@ class _ReferralActionScreenState extends State<ReferralActionScreen> {
   @override
   void initState() {
     super.initState();
-    // Auto-populate CHW clinical note directly from rules engine output (never manual typing)
-    _chwNotesCtrl.text = 'Clinical Auto-Summary: ${widget.autoReasons.join("; ")}. Evaluated at CHPS point of care. Referral initiated to ${_facilityCtrl.text}.';
+    _chwNotesCtrl.text = 'Clinical Auto-Summary: ${displayReasons.join("; ")}. Evaluated at CHPS point of care. Referral initiated to ${_facilityCtrl.text}.';
+  }
+
+  void _onComplete() {
+    if (widget.onReferralComplete != null) {
+      widget.onReferralComplete!();
+    } else if (widget.onViewNutrition != null) {
+      widget.onViewNutrition!();
+    }
   }
 
   @override
@@ -99,7 +121,7 @@ class _ReferralActionScreenState extends State<ReferralActionScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text('URGENT REFERRAL INITIATED', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.urgentRed, letterSpacing: 1.1)),
-                                Text(widget.householdName, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+                                Text(displayName, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
                                 Text('ID: ${widget.householdId}', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMedium)),
                               ],
                             ),
@@ -136,7 +158,7 @@ class _ReferralActionScreenState extends State<ReferralActionScreen> {
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: widget.autoReasons.map((r) => Padding(
+                        children: displayReasons.map((r) => Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: Row(
                             children: [
@@ -232,7 +254,7 @@ class _ReferralActionScreenState extends State<ReferralActionScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Referral submitted & SMS sent to ${_facilityCtrl.text}')),
                     );
-                    widget.onReferralComplete();
+                    _onComplete();
                   },
                   icon: const Icon(Icons.send_rounded, color: Colors.white),
                   label: Text('Send Referral & SMS', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),

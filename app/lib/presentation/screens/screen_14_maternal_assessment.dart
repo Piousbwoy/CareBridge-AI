@@ -6,16 +6,18 @@ class MaternalAssessmentScreen extends StatefulWidget {
   final double? initialHb;
   final bool initialPallorProxy;
   final Map<String, bool> initialMaternalSigns;
-  final Function(double? hb, bool pallorProxy, Map<String, bool> maternalSigns) onRunRulesEngine;
-  final VoidCallback onBack;
+  final Function(double? hb, bool pallorProxy, Map<String, bool> maternalSigns)? onRunRulesEngine;
+  final Function(double? hb, bool pallorProxy, Map<String, bool> maternalSigns)? onCompleteAssessment;
+  final VoidCallback? onBack;
 
   const MaternalAssessmentScreen({
     super.key,
-    required this.initialHb,
-    required this.initialPallorProxy,
-    required this.initialMaternalSigns,
-    required this.onRunRulesEngine,
-    required this.onBack,
+    this.initialHb,
+    this.initialPallorProxy = false,
+    this.initialMaternalSigns = const {},
+    this.onRunRulesEngine,
+    this.onCompleteAssessment,
+    this.onBack,
   });
 
   @override
@@ -44,6 +46,15 @@ class _MaternalAssessmentScreenState extends State<MaternalAssessmentScreen> {
     _maternalSigns.putIfAbsent('elevatedBP', () => false);
   }
 
+  void _triggerCompletion() {
+    final hbVal = _hasHbTest ? _hb : null;
+    if (widget.onRunRulesEngine != null) {
+      widget.onRunRulesEngine!(hbVal, _pallorProxy, _maternalSigns);
+    } else if (widget.onCompleteAssessment != null) {
+      widget.onCompleteAssessment!(hbVal, _pallorProxy, _maternalSigns);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isSevereAnaemia = _hasHbTest && _hb < 7.0;
@@ -53,7 +64,7 @@ class _MaternalAssessmentScreenState extends State<MaternalAssessmentScreen> {
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
         title: Text('14. Maternal Assessment', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: widget.onBack),
+        leading: widget.onBack != null ? IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: widget.onBack) : null,
       ),
       body: SafeArea(
         child: Column(
@@ -195,7 +206,7 @@ class _MaternalAssessmentScreenState extends State<MaternalAssessmentScreen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton.icon(
-                  onPressed: () => widget.onRunRulesEngine(_hasHbTest ? _hb : null, _pallorProxy, _maternalSigns),
+                  onPressed: _triggerCompletion,
                   icon: const Icon(Icons.psychology_rounded, color: Colors.white),
                   label: Text('Evaluate AI Triage Result', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                   style: ElevatedButton.styleFrom(

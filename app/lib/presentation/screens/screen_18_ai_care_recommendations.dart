@@ -3,9 +3,22 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme.dart';
 
 class AICareRecommendationsScreen extends StatelessWidget {
-  final VoidCallback onFinish;
+  final VoidCallback? onFinish;
+  final VoidCallback? onFinishToHome;
 
-  const AICareRecommendationsScreen({super.key, required this.onFinish});
+  const AICareRecommendationsScreen({
+    super.key,
+    this.onFinish,
+    this.onFinishToHome,
+  });
+
+  void _triggerFinish() {
+    if (onFinish != null) {
+      onFinish!();
+    } else if (onFinishToHome != null) {
+      onFinishToHome!();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +136,7 @@ class AICareRecommendationsScreen extends StatelessWidget {
                     width: double.infinity,
                     height: 44,
                     child: TextButton(
-                      onPressed: onFinish,
+                      onPressed: _triggerFinish,
                       child: Text('Complete Assessment & Return Home', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textMedium)),
                     ),
                   ),

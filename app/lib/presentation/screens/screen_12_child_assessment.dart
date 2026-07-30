@@ -8,15 +8,15 @@ class ChildAssessmentScreen extends StatefulWidget {
   final bool initialOedema;
   final Map<String, bool> initialDangerSigns;
   final Function(double muac, bool oedema, Map<String, bool> dangerSigns) onNext;
-  final VoidCallback onBack;
+  final VoidCallback? onBack;
 
   const ChildAssessmentScreen({
     super.key,
-    required this.initialMuac,
-    required this.initialOedema,
-    required this.initialDangerSigns,
+    this.initialMuac = 10.5,
+    this.initialOedema = false,
+    this.initialDangerSigns = const {},
     required this.onNext,
-    required this.onBack,
+    this.onBack,
   });
 
   @override
@@ -65,7 +65,9 @@ class _ChildAssessmentScreenState extends State<ChildAssessmentScreen> {
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
         title: Text('12. Child Assessment (6–59m)', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: widget.onBack),
+        leading: widget.onBack != null
+            ? IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: widget.onBack)
+            : null,
         actions: [
           IconButton(
             icon: Icon(_audioPlaying ? Icons.volume_up_rounded : Icons.volume_mute_rounded, color: Colors.white),

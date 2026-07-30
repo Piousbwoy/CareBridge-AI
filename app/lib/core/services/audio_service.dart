@@ -34,6 +34,10 @@ class LocalAudioService {
     if (onComplete != null) onComplete();
   }
 
+  Future<void> playDagbaniInstruction(String promptKey) async {
+    await playDagbaniAudio(promptKey);
+  }
+
   Future<void> stopAudio() async {
     _isPlaying = false;
     _currentAudioKey = null;
