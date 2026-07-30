@@ -324,7 +324,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
           // Point 5: Override is always logged with full audit trail before proceeding
           onOverride: () {
             _overrideLog.record(
-              ruleId: result.triggeredRules.isNotEmpty ? result.triggeredRules.first.ruleId : 'MANUAL_OVERRIDE',
+              ruleId: result.ghsProtocolCodes.isNotEmpty ? result.ghsProtocolCodes.first : 'MANUAL_OVERRIDE',
               overriddenBy: MockRepository().chwName,
               originalTier: result.overallTier.name,
               newTier: 'WATCH', // CHW-selected downgrade tier

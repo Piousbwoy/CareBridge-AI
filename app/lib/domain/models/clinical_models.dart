@@ -79,6 +79,8 @@ class ClinicalRuleResult {
   final String actionSummary;
   final DateTime evaluatedAt;
 
+  List<dynamic> get triggeredRules => ghsProtocolCodes;
+
   ClinicalRuleResult({
     required this.overallTier,
     required this.reasons,
@@ -88,7 +90,7 @@ class ClinicalRuleResult {
     String? actionSummary,
     String? timestamp,
     DateTime? evaluatedAt,
-  })  : ghsProtocolCodes = ghsProtocolCodes ?? [],
+  })  : ghsProtocolCodes = ghsProtocolCodes ?? (triggeredRules != null ? triggeredRules.map((e) => e.toString()).toList() : []),
         primaryRecommendation = primaryRecommendation ?? 'Follow standard GHS CHPS clinical protocols.',
         actionSummary = actionSummary ?? 'Triage Complete',
         evaluatedAt = evaluatedAt ?? DateTime.now();
