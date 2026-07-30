@@ -1,16 +1,17 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import 'core/theme.dart';
 import 'data/mock_repository.dart';
 import 'data/sync_queue_service.dart';
+import 'domain/ai/muac_trend_classifier.dart';
 import 'domain/models/clinical_models.dart';
 import 'domain/rules/imci_rules_engine.dart';
-import 'domain/ai/muac_trend_classifier.dart';
-
 import 'presentation/screens/screen_1_splash.dart';
 import 'presentation/screens/screen_2_onboarding_welcome.dart';
+import 'presentation/screens/screen_3_onboarding_why.dart';
+import 'presentation/screens/screen_4_onboarding_pillars.dart';
+import 'presentation/screens/screen_5_onboarding_workflow_preview.dart';
 import 'presentation/screens/screen_6_signin.dart';
 import 'presentation/screens/screen_7_create_account.dart';
 import 'presentation/screens/screen_8_pin_login.dart';
@@ -19,6 +20,7 @@ import 'presentation/screens/screen_11_household_details.dart';
 import 'presentation/screens/screen_12_child_assessment.dart';
 import 'presentation/screens/screen_13_young_infant_assessment.dart';
 import 'presentation/screens/screen_14_maternal_assessment.dart';
+import 'presentation/screens/screen_15_ai_risk_result.dart';
 import 'presentation/screens/screen_16_referral_action.dart';
 import 'presentation/screens/screen_17_local_nutrition.dart';
 import 'presentation/screens/screen_18_ai_care_recommendations.dart';
@@ -51,7 +53,7 @@ class _CareBridgeAppState extends State<CareBridgeApp> {
     // If running on the web (e.g. Chrome), constrain the width and wrap it in a mock phone frame
     if (kIsWeb) {
       return Container(
-        color: const Color(0xFF09141E),
+        color: Colors.black87,
         child: Center(
           child: Container(
             width: 375,
@@ -61,7 +63,7 @@ class _CareBridgeAppState extends State<CareBridgeApp> {
               borderRadius: BorderRadius.circular(40),
               border: Border.all(color: Colors.grey.shade900, width: 12),
               boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 30, spreadRadius: 8),
+                BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 20, spreadRadius: 5),
               ],
             ),
             child: ClipRRect(
@@ -152,13 +154,14 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
 
   // Services
   final _syncQueue = SyncQueueService();
-  // ignore: unused_field
-  final _overrideLog = <String>[];
+  final _overrideLog = OverrideAuditLog();
 
   @override
   void initState() {
     super.initState();
     _selectedHousehold = MockRepository().households.first;
+    // Point 9: Simulate connectivity listener — in production, ConnectivityPlus stream
+    // fires _syncQueue.attemptAutoSync() on ConnectivityResult.mobile / .wifi events
   }
 
   /// Runs both AI layers fully offline — no network call anywhere in this chain
@@ -220,35 +223,26 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _buildBodyForCurrentTab(),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, -4)),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedTabIndex,
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: AppTheme.accentTeal,
-          unselectedItemColor: AppTheme.textMedium,
-          selectedLabelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 11),
-          unselectedLabelStyle: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500),
-          onTap: (index) {
-            setState(() {
-              _selectedTabIndex = index;
-              if (index == 2 && _assessmentStep == 0) _assessmentStep = 1;
-            });
-          },
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
-            BottomNavigationBarItem(icon: Icon(Icons.format_list_numbered_rounded), label: 'Visits'),
-            BottomNavigationBarItem(icon: Icon(Icons.add_task_rounded), label: 'Assess'),
-            BottomNavigationBarItem(icon: Icon(Icons.local_hospital_outlined), label: 'Referrals'),
-            BottomNavigationBarItem(icon: Icon(Icons.sync_rounded), label: 'Sync'),
-          ],
-        ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedTabIndex,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: AppTheme.primaryNavy,
+        unselectedItemColor: AppTheme.textMedium,
+        selectedLabelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 11),
+        unselectedLabelStyle: GoogleFonts.inter(fontSize: 10),
+        onTap: (index) {
+          setState(() {
+            _selectedTabIndex = index;
+            if (index == 2 && _assessmentStep == 0) _assessmentStep = 1;
+          });
+        },
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.format_list_numbered_rounded), label: 'Visits'),
+          BottomNavigationBarItem(icon: Icon(Icons.add_task_rounded), label: 'Assess'),
+          BottomNavigationBarItem(icon: Icon(Icons.local_hospital_outlined), label: 'Referrals'),
+          BottomNavigationBarItem(icon: Icon(Icons.sync_rounded), label: 'Sync'),
+        ],
       ),
     );
   }
@@ -273,19 +267,17 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       backgroundColor: AppTheme.backgroundLight,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Luxurious CHO Header Card
+              // CHO Header Card
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  gradient: AppTheme.heroCardGradient,
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: [
-                    BoxShadow(color: AppTheme.primaryNavy.withValues(alpha: 0.3), blurRadius: 18, offset: const Offset(0, 8)),
-                  ],
+                  color: AppTheme.primaryNavy,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(color: AppTheme.primaryNavy.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 4))],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -297,68 +289,49 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('Good Morning,', style: GoogleFonts.inter(fontSize: 12, color: Colors.white70)),
-                            Text(repo.chwName, style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                            Text(repo.chwName, style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
                           ],
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(width: 7, height: 7, decoration: const BoxDecoration(color: AppTheme.accentTealGlow, shape: BoxShape.circle)),
-                              const SizedBox(width: 6),
-                              Text('CHO Active', style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
-                            ],
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(color: AppTheme.accentTeal, borderRadius: BorderRadius.circular(8)),
+                          child: Text('CHO Active', style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
                     Row(
                       children: [
-                        const Icon(Icons.location_on_rounded, color: AppTheme.accentTealGlow, size: 16),
+                        const Icon(Icons.location_on_rounded, color: AppTheme.accentTeal, size: 16),
                         const SizedBox(width: 4),
-                        Text(repo.chwZone, style: GoogleFonts.inter(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w500)),
+                        Text(repo.chwZone, style: GoogleFonts.inter(fontSize: 12, color: Colors.white70)),
                       ],
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
 
               // Urgent Alert Banner if urgent households exist
               if (urgentCount > 0)
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppTheme.urgentRedLight,
-                    borderRadius: BorderRadius.circular(16),
+                    color: AppTheme.urgentRed.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppTheme.urgentRed.withValues(alpha: 0.3)),
-                    boxShadow: AppTheme.cardShadow,
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        width: 42, height: 42,
-                        decoration: BoxDecoration(
-                          color: AppTheme.urgentRed,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 24),
-                      ),
-                      const SizedBox(width: 14),
+                      const Icon(Icons.warning_amber_rounded, color: AppTheme.urgentRed, size: 24),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('URGENT TRIAGE ATTENTION', style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.urgentRed, letterSpacing: 0.5)),
-                            const SizedBox(height: 2),
-                            Text('$urgentCount household(s) flagged for SAM / maternal risk.', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textDark)),
+                            Text('URGENT TRIAGE ATTENTION REQUIRED', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.urgentRed, letterSpacing: 1.0)),
+                            Text('$urgentCount household(s) flagged for immediate SAM/maternal intervention.', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textDark)),
                           ],
                         ),
                       ),
@@ -366,7 +339,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                   ),
                 ),
 
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
 
               // Summary Metric Cards
               Row(
@@ -376,16 +349,15 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: AppTheme.urgentRed.withValues(alpha: 0.3)),
-                        boxShadow: AppTheme.cardShadow,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('URGENT', style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.urgentRed)),
                           const SizedBox(height: 4),
-                          Text('$urgentCount', style: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.urgentRed)),
+                          Text('$urgentCount', style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.urgentRed)),
                           Text('Critical Risk', style: GoogleFonts.inter(fontSize: 10, color: AppTheme.textMedium)),
                         ],
                       ),
@@ -397,16 +369,15 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: AppTheme.watchAmber.withValues(alpha: 0.3)),
-                        boxShadow: AppTheme.cardShadow,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('WATCH', style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.watchAmber)),
                           const SizedBox(height: 4),
-                          Text('$watchCount', style: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.watchAmber)),
+                          Text('$watchCount', style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.watchAmber)),
                           Text('Follow-up', style: GoogleFonts.inter(fontSize: 10, color: AppTheme.textMedium)),
                         ],
                       ),
@@ -418,16 +389,15 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: AppTheme.accentTeal.withValues(alpha: 0.3)),
-                        boxShadow: AppTheme.cardShadow,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('QUEUE', style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.accentTeal)),
                           const SizedBox(height: 4),
-                          Text('${_syncQueue.pendingCount}', style: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.accentTeal)),
+                          Text('${_syncQueue.pendingCount}', style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.accentTeal)),
                           Text('Offline 2G', style: GoogleFonts.inter(fontSize: 10, color: AppTheme.textMedium)),
                         ],
                       ),
@@ -436,23 +406,23 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                 ],
               ),
 
-              const SizedBox(height: 22),
+              const SizedBox(height: 20),
 
               // Quick Action Navigation Buttons
-              Text('CLINICAL QUICK ACTIONS', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy, letterSpacing: 0.5)),
-              const SizedBox(height: 12),
+              Text('QUICK ACTIONS', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+              const SizedBox(height: 10),
 
               _HomeActionTile(
                 icon: Icons.format_list_numbered_rounded,
                 title: 'Prioritized Visits List',
-                subtitle: 'Ordered by 0-100 priority score & overdue penalty',
+                subtitle: 'View households ordered by 0-100 priority score & overdue decay',
                 color: AppTheme.primaryNavy,
                 onTap: () => setState(() => _selectedTabIndex = 1),
               ),
               _HomeActionTile(
                 icon: Icons.add_task_rounded,
                 title: 'Start New Clinical Assessment',
-                subtitle: '26-parameter WHO IMCI / GHS triage at point of care',
+                subtitle: 'Run 26-parameter WHO IMCI / GHS triage at point of care',
                 color: AppTheme.accentTeal,
                 onTap: () => setState(() {
                   _selectedTabIndex = 2;
@@ -462,7 +432,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
               _HomeActionTile(
                 icon: Icons.local_hospital_outlined,
                 title: 'Urgent Referrals & 2G SMS',
-                subtitle: 'Bit-packed compressed payloads for remote hospital',
+                subtitle: 'Generate sub-60 char bit-packed payloads for remote facilities',
                 color: AppTheme.urgentRed,
                 onTap: () => setState(() => _selectedTabIndex = 3),
               ),
@@ -478,79 +448,85 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       return PrioritizedVisitsScreen(
         onSelectHousehold: (household) => setState(() {
           _selectedHousehold = household;
-          _assessmentStep = 1; // Show detail screen
+          _assessmentStep = 99; // go to household details sub-view
         }),
       );
     }
-
-    // Step 1: Household detail
     return HouseholdDetailsScreen(
       household: _selectedHousehold!,
+      onStartAssessment: () => setState(() {
+        _selectedTabIndex = 1;
+        _assessmentStep = 1;
+      }),
       onBack: () => setState(() => _assessmentStep = 0),
-      onStartAssessment: () => setState(() => _assessmentStep = 2),
+    );
+  }
+
+  Widget _buildReferralScreen() {
+    return ReferralActionScreen(
+      householdId: _selectedHousehold?.id ?? 'H-10041',
+      patientName: _selectedHousehold?.name ?? 'Akua Serwaa',
+      riskTier: _activeRuleResult?.overallTier.name ?? 'URGENT',
+      // Point 8: reasons auto-injected from rules engine result
+      reasons: _activeRuleResult?.reasons ?? ['MUAC 10.5cm — Severe Acute Malnutrition (SAM)', 'Fast breathing (62/min > 60/min) in young infant'],
+      muacCm: _muac,
+      breathingRate: _rr,
+      hbLevel: _hb ?? 12.0,
+      onViewNutrition: () => setState(() { _selectedTabIndex = 1; _assessmentStep = 6; }),
     );
   }
 
   Widget _buildAssessmentTabFlow() {
     switch (_assessmentStep) {
-      case 0:
       case 1:
-      case 2:
         return ChildAssessmentScreen(
-          initialMuac: _muac,
-          initialOedema: _oedema,
-          initialDangerSigns: _childDanger,
-          onNext: (muac, oedema, dangerSigns) {
-            setState(() {
-              _muac = muac;
-              _oedema = oedema;
-              _childDanger = dangerSigns;
-              _assessmentStep = 2;
-            });
-          },
+          onNext: (muac, oedema, dangerSigns) => setState(() {
+            _muac = muac; _oedema = oedema; _childDanger = dangerSigns; _assessmentStep = 2;
+          }),
         );
       case 2:
         return YoungInfantAssessmentScreen(
-          initialBreathingRate: _rr,
-          initialTemp: _temp,
-          initialInfantSigns: _infantDanger,
-          onNext: (rr, temp, infantSigns) {
-            setState(() {
-              _rr = rr;
-              _temp = temp;
-              _infantDanger = infantSigns;
-              _assessmentStep = 3;
-            });
-          },
+          onNext: (rr, temp, infantSigns) => setState(() {
+            _rr = rr; _temp = temp; _infantDanger = infantSigns; _assessmentStep = 3;
+          }),
         );
       case 3:
         return MaternalAssessmentScreen(
-          initialHb: _hb,
-          initialPallorProxy: _pallorProxy,
-          initialMaternalSigns: _maternalDanger,
-          onRunRulesEngine: (hb, pallorProxy, maternalSigns) {
-            setState(() {
-              _hb = hb;
-              _pallorProxy = pallorProxy;
-              _maternalDanger = maternalSigns;
-            });
-            _runAIEngine();
-          },
-          onCompleteAssessment: (hb, pallorProxy, maternalSigns) {
-            setState(() {
-              _hb = hb;
-              _pallorProxy = pallorProxy;
-              _maternalDanger = maternalSigns;
-            });
-            _runAIEngine();
+          onCompleteAssessment: (hb, pallor, maternalSigns) {
+            _hb = hb; _pallorProxy = pallor; _maternalDanger = maternalSigns;
+            _runAIEngine(); // Fully offline — triggers both AI layers
           },
         );
       case 4:
-        return AICareRecommendationsScreen(
-          onFinishToHome: () => setState(() {
-            _selectedTabIndex = 0;
-            _assessmentStep = 0;
-          }),
+        final result = _activeRuleResult ?? ClinicalRuleResult(
+          overallTier: RiskTier.URGENT,
+          triggeredRules: [],
+          reasons: ['MUAC 10.5cm — Severe Acute Malnutrition (SAM)', 'Fast breathing (62/min) in young infant'],
+          timestamp: '2026-07-30 10:30',
+        );
+        final trend = _activeTrendResult ?? TrendResult(
+          direction: TrendDirection.WORSENING,
+          probability: 0.88,
+          summary: 'High risk trend: MUAC dropped by 7.0% over recent visits.',
+        );
+        return AIRiskResultScreen(
+          ruleResult: result,
+          trendResult: trend,
+          onRefer: () => setState(() => _assessmentStep = 5),
+          // Point 5: Override is always logged with full audit trail before proceeding
+          onOverride: () {
+            _overrideLog.record(
+              ruleId: result.ghsProtocolCodes.isNotEmpty ? result.ghsProtocolCodes.first : 'MANUAL_OVERRIDE',
+              overriddenBy: MockRepository().chwName,
+              originalTier: result.overallTier.name,
+              newTier: 'WATCH', // CHW-selected downgrade tier
+              note: 'CHW clinical judgment override — field conditions noted',
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Override recorded in audit trail. Proceeding to referral.')),
+            );
+            setState(() => _assessmentStep = 5);
+          },
         );
       case 5:
         return ReferralActionScreen(
@@ -572,22 +548,6 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         );
     }
   }
-
-  Widget _buildReferralScreen() {
-    return ReferralActionScreen(
-      householdId: _selectedHousehold?.id ?? 'H-10041',
-      patientName: _selectedHousehold?.name ?? 'Akua Serwaa',
-      riskTier: _activeRuleResult?.overallTier.name ?? 'URGENT',
-      reasons: _activeRuleResult?.reasons ?? ['MUAC 10.5cm — SAM (Severe Acute Malnutrition)', 'Fast Breathing (62/min)'],
-      muacCm: _muac,
-      breathingRate: _rr,
-      hbLevel: _hb ?? 8.4,
-      onViewNutrition: () => setState(() {
-        _selectedTabIndex = 2;
-        _assessmentStep = 6;
-      }),
-    );
-  }
 }
 
 class _HomeActionTile extends StatelessWidget {
@@ -608,29 +568,23 @@ class _HomeActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppTheme.cardBorder),
-        boxShadow: AppTheme.cardShadow,
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6)],
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         leading: Container(
-          width: 46, height: 46,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
+          width: 44, height: 44,
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
           child: Icon(icon, color: color, size: 24),
         ),
-        title: Text(title, style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Text(subtitle, style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMedium, height: 1.3)),
-        ),
-        trailing: const Icon(Icons.chevron_right_rounded, color: AppTheme.textMedium, size: 22),
+        title: Text(title, style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+        subtitle: Text(subtitle, style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMedium)),
+        trailing: const Icon(Icons.chevron_right_rounded, color: AppTheme.textMedium),
         onTap: onTap,
       ),
     );
