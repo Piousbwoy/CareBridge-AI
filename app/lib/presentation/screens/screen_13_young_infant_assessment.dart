@@ -67,9 +67,11 @@ class _YoungInfantAssessmentScreenState extends State<YoungInfantAssessmentScree
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(color: AppTheme.primaryNavy, borderRadius: BorderRadius.circular(12)),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('SECTION C: YOUNG INFANT DANGER SIGNS', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
+                          Expanded(
+                            child: Text('SECTION C: YOUNG INFANT DANGER SIGNS', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white), overflow: TextOverflow.ellipsis),
+                          ),
+                          const SizedBox(width: 8),
                           Text('< 60 DAYS', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.accentTeal)),
                         ],
                       ),

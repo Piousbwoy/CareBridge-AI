@@ -181,21 +181,22 @@ class _ReferralActionScreenState extends State<ReferralActionScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(children: [
-                                  const Icon(Icons.sms_outlined, color: AppTheme.accentTeal, size: 20),
-                                  const SizedBox(width: 8),
-                                  Text('2G SMS COMPACT PAYLOAD', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
-                                ]),
-                                Row(children: [
-                                  Text('60-Char Hex', style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMedium)),
-                                  Switch(
+                                const Icon(Icons.sms_outlined, color: AppTheme.accentTeal, size: 20),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text('2G SMS COMPACT PAYLOAD', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy), overflow: TextOverflow.ellipsis),
+                                ),
+                                const SizedBox(width: 4),
+                                Text('60-Char Hex', style: GoogleFonts.inter(fontSize: 10, color: AppTheme.textMedium)),
+                                Transform.scale(
+                                  scale: 0.8,
+                                  child: Switch(
                                     value: _useBitpackedHex,
                                     onChanged: (v) => setState(() => _useBitpackedHex = v),
                                     activeThumbColor: AppTheme.accentTeal,
                                   ),
-                                ]),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 8),

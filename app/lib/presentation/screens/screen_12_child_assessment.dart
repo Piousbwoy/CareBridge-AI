@@ -90,9 +90,11 @@ class _ChildAssessmentScreenState extends State<ChildAssessmentScreen> {
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(color: AppTheme.primaryNavy, borderRadius: BorderRadius.circular(14)),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('SECTION A: MALNUTRITION ASSESSMENT', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
+                          Expanded(
+                            child: Text('SECTION A: MALNUTRITION ASSESSMENT', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white), overflow: TextOverflow.ellipsis),
+                          ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(color: AppTheme.accentTeal, borderRadius: BorderRadius.circular(6)),
