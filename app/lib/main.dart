@@ -90,16 +90,19 @@ class _CareBridgeAppState extends State<CareBridgeApp> {
       case 'ONBOARDING_2':
         return OnboardingWhyScreen(
           onNext: () => setState(() => _currentStep = 'ONBOARDING_3'),
+          onBack: () => setState(() => _currentStep = 'ONBOARDING_1'),
           onSkip: () => setState(() => _currentStep = 'PIN_LOGIN'),
         );
       case 'ONBOARDING_3':
         return OnboardingPillarsScreen(
           onNext: () => setState(() => _currentStep = 'ONBOARDING_4'),
+          onBack: () => setState(() => _currentStep = 'ONBOARDING_2'),
           onSkip: () => setState(() => _currentStep = 'PIN_LOGIN'),
         );
       case 'ONBOARDING_4':
         return OnboardingWorkflowPreviewScreen(
           onGetStarted: () => setState(() => _currentStep = 'SIGNIN'),
+          onBack: () => setState(() => _currentStep = 'ONBOARDING_3'),
         );
       case 'SIGNIN':
         return SignInScreen(

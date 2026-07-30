@@ -8,6 +8,7 @@ class _OnboardingShell extends StatefulWidget {
   final int total;
   final VoidCallback onSkip;
   final VoidCallback onNext;
+  final VoidCallback? onBack;
   final String heroImage;
   final Widget contentCard;
   final Color accentColor;
@@ -17,6 +18,7 @@ class _OnboardingShell extends StatefulWidget {
     required this.total,
     required this.onSkip,
     required this.onNext,
+    this.onBack,
     required this.heroImage,
     required this.contentCard,
     this.accentColor = AppTheme.accentTeal,
@@ -34,7 +36,7 @@ class _OnboardingShellState extends State<_OnboardingShell> with SingleTickerPro
   @override
   void initState() {
     super.initState();
-    _animCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+    _animCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 650));
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _slideAnim = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
         .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
@@ -59,7 +61,7 @@ class _OnboardingShellState extends State<_OnboardingShell> with SingleTickerPro
 
           return Stack(
             children: [
-              // Hero Image (top 44% of local container height)
+              // Hero Image (top 44% of local frame height)
               Positioned(
                 top: 0, left: 0, right: 0,
                 height: heroH,
@@ -92,48 +94,71 @@ class _OnboardingShellState extends State<_OnboardingShell> with SingleTickerPro
                 ),
               ),
 
-              // Gradient blend overlay over bottom of image
+              // Soft gradient blend overlay at bottom of image
               Positioned(
-                top: heroH * 0.6,
+                top: heroH * 0.55,
                 left: 0, right: 0,
-                height: heroH * 0.4,
+                height: heroH * 0.45,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Colors.white.withValues(alpha: 0.8), Colors.white],
+                      colors: [Colors.transparent, Colors.white.withValues(alpha: 0.75), Colors.white],
                     ),
                   ),
                 ),
               ),
 
-              // Top Nav Bar overlay (CareBridge AI badge + step counter)
+              // Top Nav Bar Overlay: Back Arrow (if step > 1) + CareBridge AI Badge + Step Counter
               Positioned(
                 top: 0, left: 0, right: 0,
                 child: SafeArea(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
+                        Row(
+                          children: [
+                            if (widget.onBack != null) ...[
+                              GestureDetector(
+                                onTap: widget.onBack,
+                                child: Container(
+                                  width: 36, height: 36,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.55),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                                  ),
+                                  child: const Center(
+                                    child: Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 15),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.55),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                              ),
+                              child: Row(children: [
+                                const Icon(Icons.favorite_rounded, color: AppTheme.accentTeal, size: 14),
+                                const SizedBox(width: 5),
+                                Text('CareBridge AI', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                              ]),
+                            ),
+                          ],
+                        ),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.45),
+                            color: Colors.black.withValues(alpha: 0.55),
                             borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(children: [
-                            const Icon(Icons.favorite_rounded, color: AppTheme.accentTeal, size: 14),
-                            const SizedBox(width: 5),
-                            Text('CareBridge AI', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-                          ]),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.45),
-                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                           ),
                           child: Text('${widget.step} / ${widget.total}', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white70)),
                         ),
@@ -143,7 +168,7 @@ class _OnboardingShellState extends State<_OnboardingShell> with SingleTickerPro
                 ),
               ),
 
-              // Content Panel Card (bottom 60% of local container height)
+              // Content Panel Card (bottom 60% of frame)
               Positioned(
                 bottom: 0, left: 0, right: 0,
                 height: cardH,
@@ -152,7 +177,7 @@ class _OnboardingShellState extends State<_OnboardingShell> with SingleTickerPro
                     color: Colors.white,
                     borderRadius: BorderRadius.only(topLeft: Radius.circular(28), topRight: Radius.circular(28)),
                     boxShadow: [
-                      BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -5)),
+                      BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -6)),
                     ],
                   ),
                   child: SafeArea(
@@ -174,7 +199,7 @@ class _OnboardingShellState extends State<_OnboardingShell> with SingleTickerPro
                                     children: List.generate(widget.total, (i) => AnimatedContainer(
                                       duration: const Duration(milliseconds: 350),
                                       margin: const EdgeInsets.only(right: 6),
-                                      width: i == widget.step - 1 ? 22 : 8,
+                                      width: i == widget.step - 1 ? 24 : 8,
                                       height: 8,
                                       decoration: BoxDecoration(
                                         color: i == widget.step - 1 ? widget.accentColor : const Color(0xFFDDE3EA),
@@ -191,34 +216,57 @@ class _OnboardingShellState extends State<_OnboardingShell> with SingleTickerPro
 
                               const SizedBox(height: 6),
 
-                              // Main content
+                              // Content card
                               Expanded(child: SingleChildScrollView(child: widget.contentCard)),
 
                               const SizedBox(height: 8),
 
-                              // Bottom CTA Button
-                              SizedBox(
-                                width: double.infinity,
-                                height: 50,
-                                child: ElevatedButton(
-                                  onPressed: widget.onNext,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: widget.accentColor,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                    elevation: 0,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        widget.step == widget.total ? "Let's Get Started" : 'Continue',
-                                        style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                              // Navigation Controls (Back button text + Continue CTA)
+                              Row(
+                                children: [
+                                  if (widget.onBack != null) ...[
+                                    OutlinedButton(
+                                      onPressed: widget.onBack,
+                                      style: OutlinedButton.styleFrom(
+                                        side: const BorderSide(color: AppTheme.cardBorder),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                       ),
-                                      const SizedBox(width: 6),
-                                      const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
-                                    ],
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.arrow_back_rounded, size: 16, color: AppTheme.textDark),
+                                          const SizedBox(width: 4),
+                                          Text('Back', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                  ],
+                                  Expanded(
+                                    child: SizedBox(
+                                      height: 50,
+                                      child: ElevatedButton(
+                                        onPressed: widget.onNext,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: widget.accentColor,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                          elevation: 0,
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              widget.step == widget.total ? "Let's Get Started" : 'Continue',
+                                              style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
                             ],
                           ),
@@ -253,20 +301,20 @@ class OnboardingWelcomeScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(color: AppTheme.accentTeal.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
-            child: Text('Welcome', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.accentTeal)),
+            child: Text('WELCOME TO CAREBRIDGE AI', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.accentTeal, letterSpacing: 0.5)),
           ),
           const SizedBox(height: 10),
           Text('Your AI partner\nfor safer births.', style: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy, height: 1.2)),
           const SizedBox(height: 10),
-          Text('CareBridge AI helps Community Health Officers identify at-risk mothers and children before emergencies happen — even without internet.', style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMedium, height: 1.6)),
-          const SizedBox(height: 20),
-          _FeaturePill(icon: Icons.psychology_rounded, color: AppTheme.accentTeal, label: 'AI-Powered Risk Triage (WHO IMCI)'),
+          Text('CareBridge AI assists Community Health Officers to identify high-risk mothers and infants early — even with zero internet connectivity.', style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMedium, height: 1.5)),
+          const SizedBox(height: 18),
+          _FeaturePill(icon: Icons.psychology_rounded, color: AppTheme.accentTeal, label: 'AI Risk Triage (WHO IMCI Protocol)'),
           const SizedBox(height: 8),
-          _FeaturePill(icon: Icons.wifi_off_rounded, color: AppTheme.primaryNavy, label: 'Works 100% Offline — No Data Needed'),
+          _FeaturePill(icon: Icons.wifi_off_rounded, color: AppTheme.primaryNavy, label: '100% Offline Mode — No Mobile Data'),
           const SizedBox(height: 8),
-          _FeaturePill(icon: Icons.sms_rounded, color: AppTheme.watchAmber, label: 'Compressed 2G SMS Referrals'),
+          _FeaturePill(icon: Icons.sms_rounded, color: AppTheme.watchAmber, label: 'Compressed 2G SMS Emergency Referrals'),
           const SizedBox(height: 16),
         ],
       ),
@@ -277,43 +325,44 @@ class OnboardingWelcomeScreen extends StatelessWidget {
 // ─── SCREEN 3: ONBOARDING WHY ─────────────────────────────────────────────────
 class OnboardingWhyScreen extends StatelessWidget {
   final VoidCallback onNext;
+  final VoidCallback? onBack;
   final VoidCallback onSkip;
-  const OnboardingWhyScreen({super.key, required this.onNext, required this.onSkip});
+  const OnboardingWhyScreen({super.key, required this.onNext, this.onBack, required this.onSkip});
 
   @override
   Widget build(BuildContext context) {
     return _OnboardingShell(
       step: 2, total: 4,
-      onSkip: onSkip, onNext: onNext,
+      onSkip: onSkip, onNext: onNext, onBack: onBack,
       heroImage: 'assets/images/onboarding_2.png',
       accentColor: AppTheme.primaryNavy,
       contentCard: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(color: AppTheme.urgentRed.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-            child: Text('Why CareBridge?', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.urgentRed)),
+            child: Text('BUILT FOR FRONTLINE CARE', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.urgentRed, letterSpacing: 0.5)),
           ),
           const SizedBox(height: 10),
           Text('Built for where\nit matters most.', style: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy, height: 1.2)),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           _ReasonCard2(
             icon: Icons.warning_amber_rounded, color: AppTheme.urgentRed,
             title: 'Prioritise the Critical',
-            body: 'AI risk scoring ensures CHOs act first on the highest-risk households — not the nearest.',
+            body: 'AI scoring ranks household visits by severity so CHOs reach the most critical cases first.',
           ),
           const SizedBox(height: 10),
           _ReasonCard2(
             icon: Icons.sync_rounded, color: AppTheme.primaryNavy,
-            title: 'Offline-First Architecture',
-            body: 'Full functionality without a data connection. Encrypted queue syncs automatically when reconnected.',
+            title: 'Offline-First Storage',
+            body: 'Encrypted SQLite database runs completely offline. Queues auto-sync when online.',
           ),
           const SizedBox(height: 10),
           _ReasonCard2(
             icon: Icons.sms_rounded, color: AppTheme.watchAmber,
-            title: 'SMS Fallback Protocol',
-            body: 'When data is zero, 60-character hex payloads carry a full referral to the district hospital.',
+            title: '2G SMS Triage Payload',
+            body: '60-character compressed payload transmits complete patient diagnostics over SMS.',
           ),
           const SizedBox(height: 16),
         ],
@@ -325,32 +374,33 @@ class OnboardingWhyScreen extends StatelessWidget {
 // ─── SCREEN 4: ONBOARDING PILLARS ─────────────────────────────────────────────
 class OnboardingPillarsScreen extends StatelessWidget {
   final VoidCallback onNext;
+  final VoidCallback? onBack;
   final VoidCallback onSkip;
-  const OnboardingPillarsScreen({super.key, required this.onNext, required this.onSkip});
+  const OnboardingPillarsScreen({super.key, required this.onNext, this.onBack, required this.onSkip});
 
   @override
   Widget build(BuildContext context) {
     return _OnboardingShell(
       step: 3, total: 4,
-      onSkip: onSkip, onNext: onNext,
+      onSkip: onSkip, onNext: onNext, onBack: onBack,
       heroImage: 'assets/images/onboarding_3.png',
       accentColor: AppTheme.watchAmber,
       contentCard: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(color: AppTheme.watchAmber.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
-            child: Text('3 Core Pillars', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.watchAmber)),
+            child: Text('3 CORE PILLARS', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.watchAmber, letterSpacing: 0.5)),
           ),
           const SizedBox(height: 10),
-          Text('One mission.\nThree powerful tools.', style: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy, height: 1.2)),
-          const SizedBox(height: 16),
-          _PillarCard2(num: '01', icon: Icons.search_rounded, color: AppTheme.urgentRed, title: 'Assess', body: 'Collect MUAC, breathing rate, danger signs in under 5 minutes.'),
+          Text('One mission.\nThree essential steps.', style: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy, height: 1.2)),
+          const SizedBox(height: 14),
+          _PillarCard2(num: '01', icon: Icons.search_rounded, color: AppTheme.urgentRed, title: 'Assess', body: 'Capture MUAC, breathing rate, and danger signs in under 5 minutes.'),
           const SizedBox(height: 10),
-          _PillarCard2(num: '02', icon: Icons.bolt_rounded, color: AppTheme.accentTeal, title: 'AI Score', body: 'Instant GHS-aligned triage result. URGENT, WATCH, or ROUTINE.'),
+          _PillarCard2(num: '02', icon: Icons.bolt_rounded, color: AppTheme.accentTeal, title: 'AI Score', body: 'Instant WHO/GHS risk calculation: URGENT, WATCH, or ROUTINE.'),
           const SizedBox(height: 10),
-          _PillarCard2(num: '03', icon: Icons.send_rounded, color: AppTheme.watchAmber, title: 'Act & Refer', body: 'Guided care plan and compressed SMS referral in one tap.'),
+          _PillarCard2(num: '03', icon: Icons.send_rounded, color: AppTheme.watchAmber, title: 'Act & Refer', body: 'Receive action recommendations or send compressed SMS referrals.'),
           const SizedBox(height: 16),
         ],
       ),
@@ -361,33 +411,34 @@ class OnboardingPillarsScreen extends StatelessWidget {
 // ─── SCREEN 5: ONBOARDING HOW IT WORKS ────────────────────────────────────────
 class OnboardingWorkflowPreviewScreen extends StatelessWidget {
   final VoidCallback onGetStarted;
-  const OnboardingWorkflowPreviewScreen({super.key, required this.onGetStarted});
+  final VoidCallback? onBack;
+  const OnboardingWorkflowPreviewScreen({super.key, required this.onGetStarted, this.onBack});
 
   @override
   Widget build(BuildContext context) {
     return _OnboardingShell(
       step: 4, total: 4,
-      onSkip: onGetStarted, onNext: onGetStarted,
+      onSkip: onGetStarted, onNext: onGetStarted, onBack: onBack,
       heroImage: 'assets/images/onboarding_4.png',
       accentColor: AppTheme.accentTeal,
       contentCard: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(color: AppTheme.accentTeal.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
-            child: Text('You\'re ready', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.accentTeal)),
+            child: Text('READY FOR FIELD CARE', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.accentTeal, letterSpacing: 0.5)),
           ),
           const SizedBox(height: 10),
-          Text('A workflow built\nfor rural field care.', style: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy, height: 1.2)),
+          Text('A clinical workflow\nbuilt for rural health.', style: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy, height: 1.2)),
           const SizedBox(height: 8),
-          Text('Every feature was designed around the real conditions CHOs face in the field — limited time, low connectivity, and high patient load.', style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMedium, height: 1.6)),
-          const SizedBox(height: 16),
-          _WorkflowStep2(num: 1, color: AppTheme.urgentRed, title: 'Select Household', body: 'AI-sorted priority list surfaces the most critical visits first.'),
+          Text('Designed alongside Community Health Officers for real field conditions — high patient volume, remote locations, and low connectivity.', style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMedium, height: 1.5)),
+          const SizedBox(height: 14),
+          _WorkflowStep2(num: 1, color: AppTheme.urgentRed, title: 'Select Household', body: 'AI priority list identifies who needs care immediately.'),
           const SizedBox(height: 8),
-          _WorkflowStep2(num: 2, color: AppTheme.accentTeal, title: 'Run Clinical Assessment', body: '26-parameter WHO/GHS triage engine at point of care.'),
+          _WorkflowStep2(num: 2, color: AppTheme.accentTeal, title: 'Run Assessment', body: 'Guided 26-parameter clinical evaluation at household level.'),
           const SizedBox(height: 8),
-          _WorkflowStep2(num: 3, color: AppTheme.watchAmber, title: 'Act, Refer & Sync', body: 'Compressed SMS referral + care plan + offline queue sync.'),
+          _WorkflowStep2(num: 3, color: AppTheme.watchAmber, title: 'Act & Refer', body: 'Generate care protocol & send SMS referral to district hospital.'),
           const SizedBox(height: 16),
           Center(
             child: Text('Local Mode Ready · Ghana Health Service Protocol', style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textLight)),
