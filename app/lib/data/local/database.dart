@@ -144,9 +144,9 @@ class AppDatabase {
 
   static final Map<String, HouseholdModel> _householdsMap = {};
   static final Map<String, MemberModel> _membersMap = {};
-  static final List<VisitModel> _visitsList = [];
+  static final List<ScheduledVisitModel> _visitsList = [];
   static final List<Map<String, dynamic>> _assessmentsStore = [];
-  static final List<ReferralRecordModel> _referralsList = [];
+  static final List<ReferralModel> _referralsList = [];
   static final List<Map<String, dynamic>> _syncQueueStore = [];
   static final List<Map<String, dynamic>> _overrideLogsStore = [];
   static Map<String, dynamic>? _userProfileStore;
@@ -197,7 +197,7 @@ class AppDatabase {
             phone: item['phone'] ?? '',
             lastVisitDate: DateTime.parse(item['lastVisitDate']),
             daysOverdue: item['daysOverdue'] ?? 0,
-            currentRiskTier: RiskTier.values.firstWhere((e) => e.name == item['currentRiskTier'], _orElse: () => RiskTier.ROUTINE),
+            currentRiskTier: RiskTier.values.firstWhere((e) => e.name == item['currentRiskTier'], orElse: () => RiskTier.ROUTINE),
             memberCount: item['memberCount'] ?? 1,
             priorityScore: (item['priorityScore'] as num?)?.toDouble() ?? 50.0,
             muacVelocityCmPerWeek: (item['muacVelocityCmPerWeek'] as num?)?.toDouble() ?? 0.0,
@@ -303,24 +303,24 @@ class AppDatabase {
     return List.from(_assessmentsStore);
   }
 
-  static Future<void> saveVisit(VisitModel visit) async {
+  static Future<void> saveVisit(ScheduledVisitModel visit) async {
     await init();
     _visitsList.removeWhere((v) => v.id == visit.id);
     _visitsList.add(visit);
   }
 
-  static Future<List<VisitModel>> getVisits() async {
+  static Future<List<ScheduledVisitModel>> getVisits() async {
     await init();
     return List.from(_visitsList);
   }
 
-  static Future<void> saveReferral(ReferralRecordModel referral) async {
+  static Future<void> saveReferral(ReferralModel referral) async {
     await init();
     _referralsList.removeWhere((r) => r.id == referral.id);
     _referralsList.add(referral);
   }
 
-  static Future<List<ReferralRecordModel>> getReferrals() async {
+  static Future<List<ReferralModel>> getReferrals() async {
     await init();
     return List.from(_referralsList);
   }

@@ -252,8 +252,7 @@ class _YoungInfantAssessmentScreenState extends State<YoungInfantAssessmentScree
                         ),
                       ),
                     ],
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+
                     // Section Header
                     Container(
                       padding: const EdgeInsets.all(14),

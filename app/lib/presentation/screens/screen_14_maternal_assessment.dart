@@ -388,8 +388,7 @@ class _MaternalAssessmentScreenState extends State<MaternalAssessmentScreen> {
                         ),
                       ),
                     ],
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+
                     // Header
                     Container(
                       padding: const EdgeInsets.all(14),
