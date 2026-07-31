@@ -11,6 +11,7 @@ class YoungInfantAssessmentScreen extends StatefulWidget {
   final int initialBreathingRate;
   final double initialTemp;
   final Map<String, bool> initialInfantSigns;
+  final ScheduledVisitModel? visitContext;
   final Function(int rr, double temp, Map<String, bool> infantSigns) onNext;
   final VoidCallback? onBack;
 
@@ -19,6 +20,7 @@ class YoungInfantAssessmentScreen extends StatefulWidget {
     this.initialBreathingRate = 40,
     this.initialTemp = 36.8,
     this.initialInfantSigns = const {},
+    this.visitContext,
     required this.onNext,
     this.onBack,
   });
@@ -204,7 +206,7 @@ class _YoungInfantAssessmentScreenState extends State<YoungInfantAssessmentScree
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
-        title: Text('13. Young Infant (< 2 Months)', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        title: Text('Young Infant (< 2 Months)', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
         leading: widget.onBack != null
             ? IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: widget.onBack)
             : null,
@@ -216,6 +218,40 @@ class _YoungInfantAssessmentScreenState extends State<YoungInfantAssessmentScree
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.visitContext != null) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentTeal.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.accentTeal.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.event_note_rounded, color: AppTheme.accentTeal, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'PRE-LOADED VISIT CONTEXT',
+                                    style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.accentTeal),
+                                  ),
+                                  Text(
+                                    '${widget.visitContext!.contactName}: ${widget.visitContext!.title}',
+                                    style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Section Header

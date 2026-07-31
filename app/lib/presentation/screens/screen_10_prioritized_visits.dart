@@ -4,10 +4,16 @@ import '../../core/theme.dart';
 import '../../data/mock_repository.dart';
 import '../../domain/models/clinical_models.dart';
 
-// ─── SCREEN 9/10: HOME DASHBOARD + PRIORITIZED VISITS ─────────────────────────
+// ─── SCREEN 10: PRIORITIZED VISITS & GHS PROTOCOL CARE SCHEDULE ────────────────
 class PrioritizedVisitsScreen extends StatefulWidget {
   final Function(HouseholdModel) onSelectHousehold;
-  const PrioritizedVisitsScreen({super.key, required this.onSelectHousehold});
+  final Function(ScheduledVisitModel visit)? onSelectScheduledVisit;
+
+  const PrioritizedVisitsScreen({
+    super.key,
+    required this.onSelectHousehold,
+    this.onSelectScheduledVisit,
+  });
 
   @override
   State<PrioritizedVisitsScreen> createState() => _PrioritizedVisitsScreenState();
@@ -15,6 +21,7 @@ class PrioritizedVisitsScreen extends StatefulWidget {
 
 class _PrioritizedVisitsScreenState extends State<PrioritizedVisitsScreen>
     with SingleTickerProviderStateMixin {
+  String _viewMode = 'SCHEDULE'; // 'SCHEDULE' or 'HOUSEHOLDS'
   String _filter = 'ALL';
   final _repo = MockRepository();
   late AnimationController _headerCtrl;
@@ -23,25 +30,51 @@ class _PrioritizedVisitsScreenState extends State<PrioritizedVisitsScreen>
   @override
   void initState() {
     super.initState();
-    _headerCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+    _headerCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
     _headerFade = CurvedAnimation(parent: _headerCtrl, curve: Curves.easeOut);
     _headerCtrl.forward();
+    _repo.addListener(_onRepoChanged);
+  }
+
+  void _onRepoChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _repo.removeListener(_onRepoChanged);
     _headerCtrl.dispose();
     super.dispose();
   }
 
-  List<HouseholdModel> get _filtered {
+  List<HouseholdModel> get _filteredHouseholds {
     final all = List<HouseholdModel>.from(_repo.households);
-
-    // Ensure strict Tier-First Priority Sorting (URGENT > WATCH > ROUTINE)
     all.sort((a, b) => b.priorityScore.compareTo(a.priorityScore));
-
     if (_filter == 'ALL') return all;
     return all.where((h) => h.currentRiskTier.name == _filter).toList();
+  }
+
+  List<ScheduledVisitModel> get _filteredVisits {
+    final all = List<ScheduledVisitModel>.from(_repo.scheduledVisits);
+    // Sort overdue first, then due, then upcoming, then completed
+    all.sort((a, b) {
+      final statusWeight = {
+        VisitStatus.overdue: 0,
+        VisitStatus.due: 1,
+        VisitStatus.upcoming: 2,
+        VisitStatus.completed: 3,
+        VisitStatus.missed: 4,
+      };
+      final weightA = statusWeight[a.status] ?? 5;
+      final weightB = statusWeight[b.status] ?? 5;
+      if (weightA != weightB) return weightA.compareTo(weightB);
+      return b.daysOverdue.compareTo(a.daysOverdue);
+    });
+
+    if (_filter == 'ALL') return all;
+    if (_filter == 'OVERDUE') return all.where((v) => v.status == VisitStatus.overdue || v.status == VisitStatus.due).toList();
+    if (_filter == 'COMPLETED') return all.where((v) => v.status == VisitStatus.completed).toList();
+    return all;
   }
 
   void _showAddHouseholdDialog(BuildContext context) {
@@ -78,10 +111,7 @@ class _PrioritizedVisitsScreenState extends State<PrioritizedVisitsScreen>
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.accentTeal,
@@ -107,7 +137,6 @@ class _PrioritizedVisitsScreenState extends State<PrioritizedVisitsScreen>
                   muacVelocityCmPerWeek: 0.0,
                 );
                 _repo.addHousehold(h);
-                // Also add household head as initial member
                 _repo.addMember(MemberModel(
                   id: 'M-${DateTime.now().millisecondsSinceEpoch}',
                   householdId: newId,
@@ -118,7 +147,6 @@ class _PrioritizedVisitsScreenState extends State<PrioritizedVisitsScreen>
                   riskStatus: RiskTier.ROUTINE,
                 ));
                 Navigator.pop(ctx);
-                setState(() {});
               },
               child: Text('Register', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
             ),
@@ -128,21 +156,117 @@ class _PrioritizedVisitsScreenState extends State<PrioritizedVisitsScreen>
     );
   }
 
+  void _showAdHocVisitDialog(BuildContext context) {
+    if (_repo.members.isEmpty) return;
+    MemberModel selectedMember = _repo.members.first;
+    final reasonCtrl = TextEditingController(text: 'Caregiver reported sudden fever / breathing difficulty');
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(Icons.bolt_rounded, color: AppTheme.urgentRed),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Unscheduled / Ad-hoc Visit',
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primaryNavy),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Select Family Member:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textMedium)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppTheme.backgroundLight,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppTheme.cardBorder),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<MemberModel>(
+                        value: selectedMember,
+                        isExpanded: true,
+                        items: _repo.members.map((m) {
+                          return DropdownMenuItem(
+                            value: m,
+                            child: Text('${m.name} (${m.role})', style: GoogleFonts.inter(fontSize: 13)),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) setDialogState(() => selectedMember = val);
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text('Reported Danger Sign / Reason:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textMedium)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: reasonCtrl,
+                    maxLines: 2,
+                    style: GoogleFonts.inter(fontSize: 13),
+                    decoration: const InputDecoration(
+                      hintText: 'Describe reported symptom or reason for walk-in visit...',
+                      isDense: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.urgentRed,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  final reason = reasonCtrl.text.trim().isEmpty ? 'Ad-hoc walk-in danger sign' : reasonCtrl.text.trim();
+                  final unscheduledVisit = _repo.addUnscheduledVisit(
+                    member: selectedMember,
+                    dangerSignReason: reason,
+                  );
+                  Navigator.pop(ctx);
+                  if (widget.onSelectScheduledVisit != null) {
+                    widget.onSelectScheduledVisit!(unscheduledVisit);
+                  }
+                },
+                child: Text('Start Assessment', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final urgent = _repo.households.where((h) => h.currentRiskTier.name == 'URGENT').length;
-    final watch = _repo.households.where((h) => h.currentRiskTier.name == 'WATCH').length;
-    final routine = _repo.households.where((h) => h.currentRiskTier.name == 'ROUTINE').length;
-
-    final isCaregiver = _repo.userRole == UserRole.caregiver;
+    final urgentCount = _repo.households.where((h) => h.currentRiskTier == RiskTier.URGENT).length;
+    final overdueVisitsCount = _repo.scheduledVisits.where((v) => v.status == VisitStatus.overdue).length;
+    final dueVisitsCount = _repo.scheduledVisits.where((v) => v.status == VisitStatus.due).length;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddHouseholdDialog(context),
-        backgroundColor: AppTheme.accentTeal,
-        icon: const Icon(Icons.add_home_rounded, color: Colors.white),
-        label: Text('New Household', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
+        onPressed: () => _viewMode == 'SCHEDULE' ? _showAdHocVisitDialog(context) : _showAddHouseholdDialog(context),
+        backgroundColor: _viewMode == 'SCHEDULE' ? AppTheme.urgentRed : AppTheme.accentTeal,
+        icon: Icon(_viewMode == 'SCHEDULE' ? Icons.bolt_rounded : Icons.add_home_rounded, color: Colors.white),
+        label: Text(
+          _viewMode == 'SCHEDULE' ? '+ Ad-hoc Visit' : '+ New Household',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
       ),
       body: SafeArea(
         child: Column(
@@ -157,380 +281,389 @@ class _PrioritizedVisitsScreenState extends State<PrioritizedVisitsScreen>
                     BoxShadow(color: AppTheme.primaryNavy.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 4)),
                   ],
                 ),
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Greeting row
                     Row(
                       children: [
                         Expanded(
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(
-                              'Hello, ${_repo.chwName} 👋',
-                              style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              isCaregiver
-                                  ? 'Caregiver Home Screening · ${_repo.userDistrict}, ${_repo.userRegion}'
-                                  : '${_repo.chwZone}',
-                              style: GoogleFonts.inter(fontSize: 12, color: Colors.white.withValues(alpha: 0.7)),
-                            ),
-                          ]),
-                        ),
-                        // Mode pill
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: isCaregiver ? AppTheme.watchAmber.withValues(alpha: 0.25) : AppTheme.routineGreen.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: isCaregiver ? AppTheme.watchAmber.withValues(alpha: 0.5) : AppTheme.routineGreen.withValues(alpha: 0.4)),
-                          ),
-                          child: Row(children: [
-                            Container(
-                              width: 7, height: 7,
-                              decoration: BoxDecoration(
-                                color: isCaregiver ? AppTheme.watchAmber : AppTheme.routineGreen,
-                                shape: BoxShape.circle,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Good Day, ${_repo.chwName} 👋',
+                                style: GoogleFonts.outfit(fontSize: 19, fontWeight: FontWeight.bold, color: Colors.white),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              isCaregiver ? 'Home Caregiver' : 'CHPS Clinical Mode',
-                              style: GoogleFonts.inter(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700),
-                            ),
-                          ]),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${_repo.chwZone}',
+                                style: GoogleFonts.inter(fontSize: 11, color: Colors.white.withValues(alpha: 0.75)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.routineGreen.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppTheme.routineGreen.withValues(alpha: 0.4)),
+                          ),
+                          child: Text(
+                            'CHPS Active',
+                            style: GoogleFonts.inter(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 12),
 
-                    // ── Stats row ────────────────────────────────────────
-                    Row(children: [
-                      _StatCard(
-                        label: 'Total',
-                        sublabel: 'Households',
-                        value: '${_repo.households.length}',
-                        color: AppTheme.accentTeal,
-                        icon: Icons.home_rounded,
+                    // ── Mode Switcher Tabs (Protocol Schedule vs Household List)
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const SizedBox(width: 10),
-                      _StatCard(
-                        label: 'Visits',
-                        sublabel: 'Today',
-                        value: '2',
-                        color: Colors.white,
-                        textColor: AppTheme.primaryNavy,
-                        icon: Icons.directions_walk_rounded,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _TabButton(
+                              label: 'Care Schedule ($overdueVisitsCount Overdue)',
+                              active: _viewMode == 'SCHEDULE',
+                              activeColor: AppTheme.accentTeal,
+                              onTap: () => setState(() { _viewMode = 'SCHEDULE'; _filter = 'ALL'; }),
+                            ),
+                          ),
+                          Expanded(
+                            child: _TabButton(
+                              label: 'Households (${_repo.households.length})',
+                              active: _viewMode == 'HOUSEHOLDS',
+                              activeColor: AppTheme.primaryNavy,
+                              onTap: () => setState(() { _viewMode = 'HOUSEHOLDS'; _filter = 'ALL'; }),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 10),
-                      _StatCard(
-                        label: 'URGENT',
-                        sublabel: 'Risk',
-                        value: '$urgent',
-                        color: AppTheme.urgentRed,
-                        icon: Icons.warning_rounded,
-                      ),
-                    ]),
-                    const SizedBox(height: 16),
+                    ),
+                    const SizedBox(height: 12),
 
-                    // ── Filter tabs ──────────────────────────────────────
+                    // ── Filters Bar ──────────────────────────────────────────
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
-                      child: Row(children: [
-                        _FilterTab('ALL', _filter, () => setState(() => _filter = 'ALL')),
-                        const SizedBox(width: 8),
-                        _FilterTab('URGENT', _filter, () => setState(() => _filter = 'URGENT'),
-                            color: AppTheme.urgentRed, count: urgent),
-                        const SizedBox(width: 8),
-                        _FilterTab('WATCH', _filter, () => setState(() => _filter = 'WATCH'),
-                            color: AppTheme.watchAmber, count: watch),
-                        const SizedBox(width: 8),
-                        _FilterTab('ROUTINE', _filter, () => setState(() => _filter = 'ROUTINE'),
-                            color: AppTheme.routineGreen, count: routine),
-                      ]),
+                      child: Row(
+                        children: _viewMode == 'SCHEDULE'
+                            ? [
+                                _FilterChip('ALL', _filter, () => setState(() => _filter = 'ALL')),
+                                const SizedBox(width: 6),
+                                _FilterChip('OVERDUE / DUE', _filter, () => setState(() => _filter = 'OVERDUE'),
+                                    color: AppTheme.urgentRed, count: overdueVisitsCount + dueVisitsCount),
+                                const SizedBox(width: 6),
+                                _FilterChip('COMPLETED', _filter, () => setState(() => _filter = 'COMPLETED'),
+                                    color: AppTheme.routineGreen),
+                              ]
+                            : [
+                                _FilterChip('ALL', _filter, () => setState(() => _filter = 'ALL')),
+                                const SizedBox(width: 6),
+                                _FilterChip('URGENT', _filter, () => setState(() => _filter = 'URGENT'),
+                                    color: AppTheme.urgentRed, count: urgentCount),
+                                const SizedBox(width: 6),
+                                _FilterChip('WATCH', _filter, () => setState(() => _filter = 'WATCH'),
+                                    color: AppTheme.watchAmber),
+                                const SizedBox(width: 6),
+                                _FilterChip('ROUTINE', _filter, () => setState(() => _filter = 'ROUTINE'),
+                                    color: AppTheme.routineGreen),
+                              ],
+                      ),
                     ),
-                    const SizedBox(height: 14),
                   ],
                 ),
               ),
             ),
 
-            // ── Household List ─────────────────────────────────────────────
+            // ── Main List Content ──────────────────────────────────────────
             Expanded(
-              child: _filtered.isEmpty
-                  ? _EmptyState(filter: _filter)
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                      itemCount: _filtered.length,
-                      itemBuilder: (ctx, i) {
-                        return TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0, end: 1),
-                          duration: Duration(milliseconds: 250 + i * 50),
-                          curve: Curves.easeOutCubic,
-                          builder: (context, v, child) => Opacity(
-                            opacity: v,
-                            child: Transform.translate(
-                              offset: Offset(0, 20 * (1 - v)),
-                              child: child,
-                            ),
-                          ),
-                          child: _HouseholdCard(
-                            household: _filtered[i],
-                            onTap: () => widget.onSelectHousehold(_filtered[i]),
-                          ),
-                        );
-                      },
-                    ),
+              child: _viewMode == 'SCHEDULE' ? _buildScheduleList() : _buildHouseholdsList(),
             ),
           ],
         ),
       ),
     );
   }
-}
 
-// ── Gradient stat card ─────────────────────────────────────────────────────────
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String sublabel;
-  final String value;
-  final Color color;
-  final Color? textColor;
-  final IconData icon;
-
-  const _StatCard({
-    required this.label,
-    required this.sublabel,
-    required this.value,
-    required this.color,
-    required this.icon,
-    this.textColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final tc = textColor ?? Colors.white;
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: textColor != null ? 1 : 0.15),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(icon, size: 16, color: tc.withValues(alpha: 0.75)),
-          const SizedBox(height: 6),
-          Text(value, style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: tc)),
-          Text('$label\n$sublabel',
-              style: GoogleFonts.inter(fontSize: 10, color: tc.withValues(alpha: 0.7), height: 1.3)),
-        ]),
-      ),
-    );
-  }
-}
-
-// ── Filter tab ─────────────────────────────────────────────────────────────────
-class _FilterTab extends StatelessWidget {
-  final String label;
-  final String selected;
-  final VoidCallback onTap;
-  final Color? color;
-  final int? count;
-  const _FilterTab(this.label, this.selected, this.onTap, {this.color, this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    final isSelected = selected == label;
-    final c = color ?? Colors.white;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: AppTheme.normalAnim,
-        curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? c : Colors.white.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? c : Colors.white.withValues(alpha: 0.25)),
-          boxShadow: isSelected ? AppTheme.cardShadow(color: c, opacity: 0.3) : [],
-        ),
-        child: Row(children: [
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: isSelected
-                  ? (color == null ? AppTheme.primaryNavy : Colors.white)
-                  : Colors.white,
-            ),
+  Widget _buildScheduleList() {
+    final visits = _filteredVisits;
+    if (visits.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.event_available_rounded, size: 48, color: AppTheme.textLight),
+              const SizedBox(height: 12),
+              Text('No scheduled visits match filter', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+              Text('All protocol touches up to date.', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMedium)),
+            ],
           ),
-          if (count != null) ...[
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? Colors.white.withValues(alpha: 0.3)
-                    : Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '$count',
-                style: GoogleFonts.outfit(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: isSelected
-                      ? (color == null ? AppTheme.primaryNavy : Colors.white)
-                      : Colors.white,
-                ),
-              ),
-            ),
-          ],
-        ]),
-      ),
-    );
-  }
-}
-
-// ── Premium household card with Category Badges ────────────────────────────────
-class _HouseholdCard extends StatelessWidget {
-  final HouseholdModel household;
-  final VoidCallback onTap;
-  const _HouseholdCard({required this.household, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final repo = MockRepository();
-    final members = repo.getMembersForHousehold(household.id);
-
-    Color tierColor;
-    Color tierGlow;
-    IconData tierIcon;
-    switch (household.currentRiskTier.name) {
-      case 'URGENT':
-        tierColor = AppTheme.urgentRed;
-        tierGlow = AppTheme.urgentRedGlow;
-        tierIcon = Icons.warning_rounded;
-        break;
-      case 'WATCH':
-        tierColor = AppTheme.watchAmber;
-        tierGlow = AppTheme.watchAmberGlow;
-        tierIcon = Icons.visibility_rounded;
-        break;
-      default:
-        tierColor = AppTheme.routineGreen;
-        tierGlow = AppTheme.routineGreenGlow;
-        tierIcon = Icons.check_circle_rounded;
+        ),
+      );
     }
 
-    final parts = household.name.trim().split(' ');
-    final initials = parts.length >= 2
-        ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
-        : household.name.substring(0, 2).toUpperCase();
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+      itemCount: visits.length,
+      itemBuilder: (context, index) {
+        final visit = visits[index];
+        final isOverdue = visit.status == VisitStatus.overdue;
+        final isDue = visit.status == VisitStatus.due;
+        final isCompleted = visit.status == VisitStatus.completed;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border(left: BorderSide(color: tierColor, width: 4)),
-        boxShadow: AppTheme.cardShadow(),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                // Avatar circle with initials
-                Container(
-                  width: 50, height: 50,
-                  decoration: BoxDecoration(
-                    color: tierColor.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: tierColor.withValues(alpha: 0.3), width: 1.5),
-                  ),
-                  child: Center(
-                    child: Text(initials,
-                        style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: tierColor)),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(household.name,
-                        style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
-                    const SizedBox(height: 3),
-                    Text(household.id,
-                        style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMedium)),
-                    const SizedBox(height: 6),
+        final badgeColor = isOverdue
+            ? AppTheme.urgentRed
+            : isDue
+                ? AppTheme.watchAmber
+                : isCompleted
+                    ? AppTheme.routineGreen
+                    : AppTheme.textMedium;
 
-                    // Member Category Badges (Mother/Newborn/Child)
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 4,
-                      children: [
-                        ...members.map((m) {
-                          String iconStr = '🧒';
-                          if (m.category == PersonCategory.mother) iconStr = '🤰';
-                          if (m.category == PersonCategory.newbornYoungInfant) iconStr = '👶';
-                          if (m.category == PersonCategory.other) iconStr = '👤';
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(iconStr, style: const TextStyle(fontSize: 11)),
-                          );
-                        }),
-                        if (household.daysOverdue > 0)
-                          Container(
-                            margin: const EdgeInsets.only(left: 4),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: tierColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text('${household.daysOverdue}d overdue',
-                                style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: tierColor)),
+        final statusLabel = isOverdue
+            ? '${visit.daysOverdue} DAYS OVERDUE'
+            : isDue
+                ? 'DUE TODAY'
+                : isCompleted
+                    ? 'COMPLETED'
+                    : 'UPCOMING';
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: isOverdue ? AppTheme.urgentRed.withValues(alpha: 0.5) : AppTheme.cardBorder,
+              width: isOverdue ? 1.5 : 1.0,
+            ),
+          ),
+          elevation: 1,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              if (widget.onSelectScheduledVisit != null) {
+                widget.onSelectScheduledVisit!(visit);
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: badgeColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
+                        ),
+                        child: Text(
+                          statusLabel,
+                          style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: badgeColor),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          visit.contactName,
+                          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.accentTeal),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (visit.isUnscheduled)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.urgentRed.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
                           ),
+                          child: Text('Unscheduled', style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.urgentRed)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    visit.title,
+                    style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.person_rounded, size: 14, color: AppTheme.textMedium),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          '${visit.memberName} • ${visit.householdName}',
+                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textDark),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.backgroundLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded, size: 14, color: AppTheme.textMedium),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            visit.reasonText,
+                            style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMedium),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
-                  ]),
-                ),
-                // Tier badge
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: tierColor,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [BoxShadow(color: tierGlow, blurRadius: 8)],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Due: ${visit.dueDate.toString().substring(0, 10)}',
+                        style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMedium),
                       ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(tierIcon, size: 11, color: Colors.white),
-                        const SizedBox(width: 4),
-                        Text(household.currentRiskTier.name,
-                            style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
-                      ]),
-                    ),
-                    const SizedBox(height: 8),
-                    const Icon(Icons.chevron_right_rounded, size: 18, color: AppTheme.textLight),
-                  ],
+                      Row(
+                        children: [
+                          Text(
+                            isCompleted ? 'View Result' : 'Start Assessment',
+                            style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.accentTeal),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.arrow_forward_rounded, size: 14, color: AppTheme.accentTeal),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHouseholdsList() {
+    final households = _filteredHouseholds;
+    if (households.isEmpty) {
+      return Center(
+        child: Text('No households registered in this filter.', style: GoogleFonts.inter(color: AppTheme.textMedium)),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+      itemCount: households.length,
+      itemBuilder: (context, index) {
+        final household = households[index];
+        final isUrgent = household.currentRiskTier == RiskTier.URGENT;
+        final isWatch = household.currentRiskTier == RiskTier.WATCH;
+        final color = isUrgent ? AppTheme.urgentRed : isWatch ? AppTheme.watchAmber : AppTheme.routineGreen;
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: color.withValues(alpha: 0.4), width: isUrgent ? 1.5 : 1.0),
+          ),
+          elevation: 1,
+          child: ListTile(
+            contentPadding: const EdgeInsets.all(14),
+            onTap: () => widget.onSelectHousehold(household),
+            leading: Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+              child: Center(child: Icon(Icons.home_rounded, color: color, size: 24)),
+            ),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    household.name,
+                    style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
+                  child: Text(
+                    household.currentRiskTier.name,
+                    style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
                 ),
               ],
             ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Text('${household.address} • ${household.memberCount} members', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textDark)),
+                const SizedBox(height: 2),
+                Text('Priority Score: ${household.priorityScore.toStringAsFixed(1)} | Overdue: ${household.daysOverdue} days',
+                    style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMedium)),
+              ],
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded, color: AppTheme.textMedium),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _TabButton extends StatelessWidget {
+  final String label;
+  final bool active;
+  final Color activeColor;
+  final VoidCallback onTap;
+
+  const _TabButton({required this.label, required this.active, required this.activeColor, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? activeColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: active ? Colors.white : Colors.white.withValues(alpha: 0.7),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ),
@@ -538,21 +671,54 @@ class _HouseholdCard extends StatelessWidget {
   }
 }
 
-// ── Empty state ────────────────────────────────────────────────────────────────
-class _EmptyState extends StatelessWidget {
-  final String filter;
-  const _EmptyState({required this.filter});
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final String currentFilter;
+  final VoidCallback onTap;
+  final Color? color;
+  final int? count;
+
+  const _FilterChip(this.label, this.currentFilter, this.onTap, {this.color, this.count});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.search_off_rounded, size: 56, color: AppTheme.textLight),
-        const SizedBox(height: 12),
-        Text('No $filter households', style: GoogleFonts.outfit(fontSize: 16, color: AppTheme.textMedium, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 4),
-        Text('All households are up to date', style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textLight)),
-      ]),
+    final isSelected = currentFilter == label || (label == 'OVERDUE / DUE' && currentFilter == 'OVERDUE');
+    final chipColor = color ?? AppTheme.accentTeal;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? chipColor : Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: isSelected ? chipColor : Colors.white.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.85),
+              ),
+            ),
+            if (count != null && count! > 0) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                child: Text(
+                  '$count',
+                  style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: chipColor),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

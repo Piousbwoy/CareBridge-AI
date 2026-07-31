@@ -7,6 +7,7 @@ import 'data/sync_queue_service.dart';
 import 'domain/ai/muac_trend_classifier.dart';
 import 'domain/models/clinical_models.dart';
 import 'domain/rules/imci_rules_engine.dart';
+import 'domain/services/care_schedule_engine.dart';
 import 'presentation/screens/screen_1_splash.dart';
 import 'presentation/screens/screen_2_onboarding_welcome.dart';
 import 'presentation/screens/screen_3_onboarding_why.dart';
@@ -27,8 +28,9 @@ import 'presentation/screens/screen_18_ai_care_recommendations.dart';
 import 'presentation/screens/screen_19_sync_status.dart';
 import 'presentation/screens/screen_web_only_notice.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await CareScheduleEngine.initialize();
   runApp(const CareBridgeApp());
 }
 
@@ -150,17 +152,18 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   // Assessment state
   HouseholdModel? _selectedHousehold;
   MemberModel? _selectedMember;
+  ScheduledVisitModel? _activeVisitContext;
   int _assessmentStep = 0;
 
   // Collected clinical parameters
   double _muac = 10.5;
-  bool _oedema = true;
+  bool _oedema = false;
   Map<String, bool> _childDanger = {};
-  int _rr = 62;
-  double _temp = 37.8;
+  int _rr = 40;
+  double _temp = 36.8;
   Map<String, bool> _infantDanger = {};
   PregnancyStatus _pregnancyStatus = PregnancyStatus.currentlyPregnant;
-  double? _hb = 8.4;
+  double? _hb = 11.5;
   bool _pallorProxy = false;
   Map<String, bool> _maternalDanger = {};
 
@@ -174,7 +177,9 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   @override
   void initState() {
     super.initState();
-    _selectedHousehold = MockRepository().households.first;
+    if (MockRepository().households.isNotEmpty) {
+      _selectedHousehold = MockRepository().households.first;
+    }
   }
 
   /// Runs both AI layers fully offline — no network call anywhere in this chain
@@ -211,13 +216,12 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     final ruleRes = IMCIRulesEngine.evaluate(input);
 
     // Layer 2: TFLite trend classifier — runs in background isolate, never blocks UI
-    final history = MockRepository().getHistoricalMUAC('M-3');
+    final history = MockRepository().getHistoricalMUAC(_selectedMember?.id ?? 'M-3');
     final trendRes = await MUACTrendClassifier.analyzeTrend(history);
 
-    // Point 9: Queue assessment locally for later sync — no network required
     _syncQueue.enqueueAssessment(
       householdId: _selectedHousehold?.id ?? 'H-UNKNOWN',
-      patientName: _selectedHousehold?.name ?? 'Unknown',
+      patientName: _selectedMember?.name ?? _selectedHousehold?.name ?? 'Unknown',
       chpsZone: MockRepository().chwZone,
       riskTier: ruleRes.overallTier.name,
       reasons: ruleRes.reasons,
@@ -227,7 +231,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       isUrgentReferral: ruleRes.overallTier == RiskTier.URGENT,
     );
 
-    // Update live repository & persist assessment record
+    // Update live repository, complete scheduled visit, and persist assessment record
     if (_selectedHousehold != null) {
       MockRepository().recordAssessment(
         householdId: _selectedHousehold!.id,
@@ -235,6 +239,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         tier: ruleRes.overallTier,
         muac: _muac,
         reasons: ruleRes.reasons,
+        activeVisitId: _activeVisitContext?.id,
       );
     }
 
@@ -259,7 +264,13 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         onTap: (index) {
           setState(() {
             _selectedTabIndex = index;
-            if (index == 2 && _assessmentStep == 0) _assessmentStep = 1;
+            // Reset Visits sub-view when leaving/returning to Visits tab
+            if (index == 1) _showingHouseholdDetails = false;
+            // Start assessment at step 1 if Assess tab tapped fresh
+            if (index == 2 && _assessmentStep == 0) {
+              _assessmentStep = 1;
+              _activeVisitContext = null;
+            }
           });
         },
         items: const [
@@ -469,12 +480,29 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     );
   }
 
+  // ── VISITS tab internal view state (separate from assessment step) ─────────────
+  bool _showingHouseholdDetails = false;
+
   Widget _buildVisitsTabFlow() {
-    if (_assessmentStep == 0) {
+    if (!_showingHouseholdDetails) {
       return PrioritizedVisitsScreen(
         onSelectHousehold: (household) => setState(() {
           _selectedHousehold = household;
-          _assessmentStep = 99; // go to household details sub-view
+          _showingHouseholdDetails = true;
+        }),
+        onSelectScheduledVisit: (visit) => setState(() {
+          // Pre-load the visit context then jump to Assess tab
+          _activeVisitContext = visit;
+          _selectedHousehold = MockRepository().households.firstWhere(
+            (h) => h.id == visit.householdId,
+            orElse: () => MockRepository().households.first,
+          );
+          _selectedMember = MockRepository().members.firstWhere(
+            (m) => m.id == visit.memberId,
+            orElse: () => MockRepository().members.first,
+          );
+          _assessmentStep = _stageToStartStep(visit.lifecycleStage);
+          _selectedTabIndex = 2; // Switch to Assess tab so screens render
         }),
       );
     }
@@ -482,20 +510,36 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       household: _selectedHousehold!,
       onStartMemberAssessment: (member) => setState(() {
         _selectedMember = member;
+        _activeVisitContext = null;
         _assessmentStep = _categoryToStartStep(member.category);
+        _selectedTabIndex = 2; // Switch to Assess tab
+        _showingHouseholdDetails = false;
       }),
       onAddNewPerson: (category) => setState(() {
+        _activeVisitContext = null;
         _assessmentStep = _categoryToStartStep(category);
+        _selectedTabIndex = 2; // Switch to Assess tab
+        _showingHouseholdDetails = false;
       }),
-      onBack: () => setState(() => _assessmentStep = 0),
+      onBack: () => setState(() => _showingHouseholdDetails = false),
     );
+  }
+
+  int _stageToStartStep(LifecycleStage stage) {
+    switch (stage) {
+      case LifecycleStage.childUnder5: return 1;
+      case LifecycleStage.newborn: return 2;
+      case LifecycleStage.postpartum: return 3;
+      case LifecycleStage.pregnant: return 3;
+      case LifecycleStage.womanReproductiveAge: return 3;
+    }
   }
 
   int _categoryToStartStep(PersonCategory category) {
     switch (category) {
-      case PersonCategory.childUnder5: return 1;  // screen 12 child assessment
-      case PersonCategory.newbornYoungInfant: return 2; // screen 13 infant assessment
-      case PersonCategory.mother: return 3; // screen 14 maternal assessment
+      case PersonCategory.childUnder5: return 1;
+      case PersonCategory.newbornYoungInfant: return 2;
+      case PersonCategory.mother: return 3;
       default: return 1;
     }
   }
@@ -503,33 +547,38 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   Widget _buildReferralScreen() {
     return ReferralActionScreen(
       householdId: _selectedHousehold?.id ?? 'H-10041',
-      patientName: _selectedHousehold?.name ?? 'Akua Serwaa',
+      memberId: _selectedMember?.id,
+      patientName: _selectedMember?.name ?? _selectedHousehold?.name ?? 'Akua Serwaa',
       riskTier: _activeRuleResult?.overallTier.name ?? 'URGENT',
-      // Point 8: reasons auto-injected from rules engine result
       reasons: _activeRuleResult?.reasons ?? ['MUAC 10.5cm — Severe Acute Malnutrition (SAM)', 'Fast breathing (62/min > 60/min) in young infant'],
       muacCm: _muac,
       breathingRate: _rr,
-      hbLevel: _hb ?? 12.0,
-      onViewNutrition: () => setState(() { _selectedTabIndex = 1; _assessmentStep = 6; }),
+      hbLevel: _hb ?? 11.5,
+      bilateralOedema: _oedema,
+      onViewNutrition: () => setState(() { _selectedTabIndex = 2; _assessmentStep = 6; }),
     );
   }
 
   Widget _buildAssessmentTabFlow() {
     switch (_assessmentStep) {
+      case 0:
       case 1:
         return ChildAssessmentScreen(
+          visitContext: _activeVisitContext,
           onNext: (muac, oedema, dangerSigns) => setState(() {
             _muac = muac; _oedema = oedema; _childDanger = dangerSigns; _assessmentStep = 2;
           }),
         );
       case 2:
         return YoungInfantAssessmentScreen(
+          visitContext: _activeVisitContext,
           onNext: (rr, temp, infantSigns) => setState(() {
             _rr = rr; _temp = temp; _infantDanger = infantSigns; _assessmentStep = 3;
           }),
         );
       case 3:
         return MaternalAssessmentScreen(
+          visitContext: _activeVisitContext,
           onCompleteAssessment: (hb, pallor, maternalSigns, status) {
             _hb = hb;
             _pallorProxy = pallor;
@@ -554,13 +603,12 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
           ruleResult: result,
           trendResult: trend,
           onRefer: () => setState(() => _assessmentStep = 5),
-          // Point 5: Override is always logged with full audit trail before proceeding
           onOverride: () {
             _overrideLog.record(
               ruleId: result.ghsProtocolCodes.isNotEmpty ? result.ghsProtocolCodes.first : 'MANUAL_OVERRIDE',
               overriddenBy: MockRepository().chwName,
               originalTier: result.overallTier.name,
-              newTier: 'WATCH', // CHW-selected downgrade tier
+              newTier: 'WATCH',
               note: 'CHW clinical judgment override — field conditions noted',
             );
             ScaffoldMessenger.of(context).showSnackBar(
@@ -572,12 +620,14 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       case 5:
         return ReferralActionScreen(
           householdId: _selectedHousehold?.id ?? 'H-10041',
-          patientName: _selectedHousehold?.name ?? 'Akua Serwaa',
+          memberId: _selectedMember?.id,
+          patientName: _selectedMember?.name ?? _selectedHousehold?.name ?? 'Akua Serwaa',
           riskTier: _activeRuleResult?.overallTier.name ?? 'URGENT',
           reasons: _activeRuleResult?.reasons ?? ['MUAC 10.5cm — SAM'],
           muacCm: _muac,
           breathingRate: _rr,
-          hbLevel: _hb ?? 12.0,
+          hbLevel: _hb ?? 11.5,
+          bilateralOedema: _oedema,
           onViewNutrition: () => setState(() => _assessmentStep = 6),
         );
       case 6:

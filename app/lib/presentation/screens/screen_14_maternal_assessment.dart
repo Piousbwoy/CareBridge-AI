@@ -13,6 +13,7 @@ class MaternalAssessmentScreen extends StatefulWidget {
   final bool initialPallorProxy;
   final Map<String, bool> initialMaternalSigns;
   final PregnancyStatus initialPregnancyStatus;
+  final ScheduledVisitModel? visitContext;
   final Function(double? hb, bool pallorProxy, Map<String, bool> maternalSigns, PregnancyStatus status)? onRunRulesEngine;
   final Function(double? hb, bool pallorProxy, Map<String, bool> maternalSigns, PregnancyStatus status)? onCompleteAssessment;
   final VoidCallback? onBack;
@@ -23,6 +24,7 @@ class MaternalAssessmentScreen extends StatefulWidget {
     this.initialPallorProxy = false,
     this.initialMaternalSigns = const {},
     this.initialPregnancyStatus = PregnancyStatus.currentlyPregnant,
+    this.visitContext,
     this.onRunRulesEngine,
     this.onCompleteAssessment,
     this.onBack,
@@ -340,7 +342,7 @@ class _MaternalAssessmentScreenState extends State<MaternalAssessmentScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
-        title: Text('14. Maternal Assessment', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        title: Text('Maternal Assessment', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
         leading: widget.onBack != null
             ? IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: widget.onBack)
             : null,
@@ -352,6 +354,40 @@ class _MaternalAssessmentScreenState extends State<MaternalAssessmentScreen> {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.visitContext != null) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentTeal.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.accentTeal.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.event_note_rounded, color: AppTheme.accentTeal, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'PRE-LOADED VISIT CONTEXT',
+                                    style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.accentTeal),
+                                  ),
+                                  Text(
+                                    '${widget.visitContext!.contactName}: ${widget.visitContext!.title}',
+                                    style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Header

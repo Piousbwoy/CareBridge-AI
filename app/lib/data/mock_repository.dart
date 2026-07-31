@@ -1,17 +1,19 @@
 import 'package:flutter/foundation.dart';
 import '../domain/models/clinical_models.dart';
 import '../domain/algorithms/priority_scoring_engine.dart';
+import '../domain/services/care_schedule_engine.dart';
 import 'local/database.dart';
 
 enum SignInResult { success, noAccount, wrongPin }
 
 /// Central dynamic repository for CareBridge AI.
-/// Manages user profile session, live households, members, and real assessment records.
+/// Manages user profile session, live households, members, protocol schedules, and referrals.
 class MockRepository extends ChangeNotifier {
   static final MockRepository _instance = MockRepository._internal();
   factory MockRepository() => _instance;
   MockRepository._internal() {
     _loadFromLocalDatabase();
+    _initCareSchedules();
   }
 
   // User Profile Session
@@ -29,7 +31,7 @@ class MockRepository extends ChangeNotifier {
   int pendingSyncCount = 3;
   DateTime lastSyncTime = DateTime.now().subtract(const Duration(hours: 4));
 
-  // In-Memory Live State (seeded with initial real field data)
+  // In-Memory Live State
   late final List<HouseholdModel> households = [
     HouseholdModel(
       id: 'H-10041',
@@ -121,6 +123,8 @@ class MockRepository extends ChangeNotifier {
       name: 'Akua Serwaa',
       role: 'Pregnant Mother (32 wks)',
       category: PersonCategory.mother,
+      lifecycleStage: LifecycleStage.pregnant,
+      eddDate: DateTime.now().add(const Duration(days: 56)),
       ageMonths: 336,
       riskStatus: RiskTier.WATCH,
     ),
@@ -130,6 +134,7 @@ class MockRepository extends ChangeNotifier {
       name: 'Kofi Serwaa',
       role: 'Husband',
       category: PersonCategory.other,
+      lifecycleStage: LifecycleStage.womanReproductiveAge,
       ageMonths: 420,
       riskStatus: RiskTier.ROUTINE,
     ),
@@ -139,6 +144,9 @@ class MockRepository extends ChangeNotifier {
       name: 'Ama Serwaa',
       role: 'Child (14 months)',
       category: PersonCategory.childUnder5,
+      lifecycleStage: LifecycleStage.childUnder5,
+      linkedMotherId: 'M-1',
+      birthDate: DateTime.now().subtract(const Duration(days: 420)),
       ageMonths: 14,
       latestMuacCm: 10.5,
       riskStatus: RiskTier.URGENT,
@@ -149,6 +157,8 @@ class MockRepository extends ChangeNotifier {
       name: 'Abena Gyamfi',
       role: 'Mother',
       category: PersonCategory.mother,
+      lifecycleStage: LifecycleStage.postpartum,
+      deliveryDate: DateTime.now().subtract(const Duration(days: 14)),
       ageMonths: 288,
       riskStatus: RiskTier.ROUTINE,
     ),
@@ -156,9 +166,12 @@ class MockRepository extends ChangeNotifier {
       id: 'M-5',
       householdId: 'H-10042',
       name: 'Abena Gyamfi\'s Baby',
-      role: 'Young Infant (9 weeks)',
+      role: 'Young Infant (2 weeks)',
       category: PersonCategory.newbornYoungInfant,
-      ageMonths: 2,
+      lifecycleStage: LifecycleStage.newborn,
+      linkedMotherId: 'M-4',
+      birthDate: DateTime.now().subtract(const Duration(days: 14)),
+      ageMonths: 1,
       latestMuacCm: 12.0,
       riskStatus: RiskTier.WATCH,
     ),
@@ -168,16 +181,49 @@ class MockRepository extends ChangeNotifier {
       name: 'Hajia Mariama',
       role: 'Teenage Pregnant Mother (17 yrs, 24 wks)',
       category: PersonCategory.mother,
+      lifecycleStage: LifecycleStage.pregnant,
+      eddDate: DateTime.now().add(const Duration(days: 112)),
       ageMonths: 204,
       riskStatus: RiskTier.WATCH,
       isTeenagePregnancy: true,
     ),
   ];
 
+  final List<ScheduledVisitModel> scheduledVisits = [];
+  final List<ReferralModel> referrals = [];
+
   // Historical MUAC trends per member
   final Map<String, List<double>> _muacHistoryMap = {
     'M-3': [12.2, 11.4, 10.5],
   };
+
+  void _initCareSchedules() {
+    scheduledVisits.clear();
+    for (final member in members) {
+      final h = households.firstWhere(
+        (house) => house.id == member.householdId,
+        orElse: () => households.first,
+      );
+      final list = CareScheduleEngine.generateScheduleForMember(member: member, household: h);
+      scheduledVisits.addAll(list);
+    }
+
+    // Seed initial referral record for demo continuity
+    referrals.add(ReferralModel(
+      id: 'REF-10041',
+      householdId: 'H-10041',
+      memberId: 'M-3',
+      patientName: 'Ama Serwaa',
+      riskTier: RiskTier.URGENT,
+      facilityName: 'Bole District Hospital',
+      facilityTier: 'District Hospital',
+      referralNote: 'URGENT: MUAC 10.5cm — Severe Acute Malnutrition (SAM) with fast breathing (62/min). Referred by CHW Ama Abena.',
+      dangerSigns: ['MUAC 10.5cm — SAM', 'Fast breathing (62/min) in young infant'],
+      status: ReferralStatus.pending,
+      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+      updatedAt: DateTime.now().subtract(const Duration(hours: 2)),
+    ));
+  }
 
   void _loadFromLocalDatabase() async {
     final profile = await AppDatabase.getUserProfile();
@@ -201,7 +247,6 @@ class MockRepository extends ChangeNotifier {
 
   // ── Dynamic Actions ──────────────────────────────────────────────────────────
 
-  /// Update active user session credentials
   void setUserProfile({
     required String name,
     required UserRole role,
@@ -230,7 +275,6 @@ class MockRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Normalise phone so +233241234567, 0241234567, +233 24 123 4567 all match
   static String _normalizePhone(String raw) {
     final digits = raw.replaceAll(RegExp(r'[^\d]'), '');
     if (digits.startsWith('233')) return digits;
@@ -238,7 +282,6 @@ class MockRepository extends ChangeNotifier {
     return digits;
   }
 
-  /// Validate phone+PIN credentials for sign-in
   SignInResult signIn({required String phone, required String pin}) {
     if (pinCode.isEmpty || userPhone.isEmpty) return SignInResult.noAccount;
     final incoming = _normalizePhone(phone);
@@ -247,17 +290,14 @@ class MockRepository extends ChangeNotifier {
     return SignInResult.success;
   }
 
-  /// Add new household dynamically
   void addHousehold(HouseholdModel newHousehold) {
     households.add(newHousehold);
     notifyListeners();
   }
 
-  /// Add new household member dynamically
   void addMember(MemberModel newMember) {
     members.add(newMember);
 
-    // Update household member count
     final hIndex = households.indexWhere((h) => h.id == newMember.householdId);
     if (hIndex != -1) {
       final oldH = households[hIndex];
@@ -277,19 +317,106 @@ class MockRepository extends ChangeNotifier {
         priorityScore: oldH.priorityScore,
         muacVelocityCmPerWeek: oldH.muacVelocityCmPerWeek,
       );
+      
+      // Generate schedule for new member
+      final newVisits = CareScheduleEngine.generateScheduleForMember(member: newMember, household: households[hIndex]);
+      scheduledVisits.addAll(newVisits);
     }
     notifyListeners();
   }
 
-  /// Record clinical assessment result — updates member status & household priority score live
+  void completeScheduledVisit(String visitId) {
+    final idx = scheduledVisits.indexWhere((v) => v.id == visitId);
+    if (idx != -1) {
+      scheduledVisits[idx] = scheduledVisits[idx].copyWith(
+        status: VisitStatus.completed,
+        completedDate: DateTime.now(),
+      );
+      notifyListeners();
+    }
+  }
+
+  ScheduledVisitModel addUnscheduledVisit({
+    required MemberModel member,
+    required String dangerSignReason,
+  }) {
+    final h = households.firstWhere(
+      (house) => house.id == member.householdId,
+      orElse: () => households.first,
+    );
+    final visit = CareScheduleEngine.createUnscheduledVisit(
+      member: member,
+      household: h,
+      reportedDangerSign: dangerSignReason,
+    );
+    scheduledVisits.insert(0, visit);
+    notifyListeners();
+    return visit;
+  }
+
+  ReferralModel createReferral({
+    required String householdId,
+    required String memberId,
+    required String patientName,
+    required RiskTier riskTier,
+    required String facilityName,
+    required String facilityTier,
+    required String referralNote,
+    required List<String> dangerSigns,
+  }) {
+    final ref = ReferralModel(
+      id: 'REF-${DateTime.now().millisecondsSinceEpoch}',
+      householdId: householdId,
+      memberId: memberId,
+      patientName: patientName,
+      riskTier: riskTier,
+      facilityName: facilityName,
+      facilityTier: facilityTier,
+      referralNote: referralNote,
+      dangerSigns: dangerSigns,
+      status: ReferralStatus.pending,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    // Remove old referral for same member if exists, replace with latest
+    referrals.removeWhere((r) => r.memberId == memberId);
+    referrals.insert(0, ref);
+    notifyListeners();
+    return ref;
+  }
+
+  void updateReferralStatus(String referralId, ReferralStatus newStatus) {
+    final idx = referrals.indexWhere((r) => r.id == referralId);
+    if (idx != -1) {
+      referrals[idx] = referrals[idx].copyWith(
+        status: newStatus,
+        updatedAt: DateTime.now(),
+      );
+      notifyListeners();
+    }
+  }
+
   void recordAssessment({
     required String householdId,
     String? memberId,
     required RiskTier tier,
     double? muac,
     List<String> reasons = const [],
+    String? activeVisitId,
   }) {
-    // 1. Update member if provided
+    if (activeVisitId != null) {
+      completeScheduledVisit(activeVisitId);
+    } else if (memberId != null) {
+      // Complete matching active visit for member if any
+      final matchingIdx = scheduledVisits.indexWhere(
+        (v) => v.memberId == memberId && (v.status == VisitStatus.due || v.status == VisitStatus.overdue),
+      );
+      if (matchingIdx != -1) {
+        completeScheduledVisit(scheduledVisits[matchingIdx].id);
+      }
+    }
+
     if (memberId != null) {
       final mIndex = members.indexWhere((m) => m.id == memberId);
       if (mIndex != -1) {
@@ -300,6 +427,12 @@ class MockRepository extends ChangeNotifier {
           name: oldM.name,
           role: oldM.role,
           category: oldM.category,
+          lifecycleStage: oldM.lifecycleStage,
+          linkedMotherId: oldM.linkedMotherId,
+          eddDate: oldM.eddDate,
+          deliveryDate: oldM.deliveryDate,
+          birthDate: oldM.birthDate,
+          stageHistory: oldM.stageHistory,
           ageMonths: oldM.ageMonths,
           latestMuacCm: muac ?? oldM.latestMuacCm,
           riskStatus: tier,
@@ -313,13 +446,12 @@ class MockRepository extends ChangeNotifier {
       }
     }
 
-    // 2. Update household record live
     final hIndex = households.indexWhere((h) => h.id == householdId);
     if (hIndex != -1) {
       final oldH = households[hIndex];
       final newScore = PriorityScoringEngine.calculatePriorityScore(
         riskTier: tier,
-        daysOverdue: 0, // Reset overdue count since visit just completed today
+        daysOverdue: 0,
       );
 
       households[hIndex] = HouseholdModel(
@@ -340,7 +472,6 @@ class MockRepository extends ChangeNotifier {
       );
     }
 
-    // 3. Persist to AppDatabase & sync queue
     AppDatabase.saveAssessment({
       'id': 'ASS-${DateTime.now().millisecondsSinceEpoch}',
       'householdId': householdId,
@@ -363,6 +494,18 @@ class MockRepository extends ChangeNotifier {
 
   List<MemberModel> getMembersForHousehold(String householdId) {
     return members.where((m) => m.householdId == householdId).toList();
+  }
+
+  List<ScheduledVisitModel> getScheduledVisitsForHousehold(String householdId) {
+    return scheduledVisits.where((v) => v.householdId == householdId).toList();
+  }
+
+  ReferralModel? getReferralForMember(String memberId) {
+    try {
+      return referrals.firstWhere((r) => r.memberId == memberId);
+    } catch (_) {
+      return null;
+    }
   }
 
   List<double> getHistoricalMUAC(String memberId) {

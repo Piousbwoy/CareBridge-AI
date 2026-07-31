@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 enum UserRole {
   districtOfficer,
   frontlineHealthWorker,
@@ -11,6 +13,14 @@ enum PersonCategory {
   other,
 }
 
+enum LifecycleStage {
+  womanReproductiveAge, // 15–49y, non-pregnant — preconception/anaemia, family planning
+  pregnant,             // Tracked by trimester + EDD
+  postpartum,           // First 6 weeks after delivery
+  newborn,              // 0–2 months
+  childUnder5,          // 2–59 months
+}
+
 enum PregnancyStatus {
   currentlyPregnant,
   postpartum,
@@ -20,6 +30,48 @@ enum PregnancyStatus {
 enum RiskTier { URGENT, WATCH, ROUTINE }
 
 enum TrendDirection { WORSENING, STABLE, IMPROVING, INSUFFICIENT_DATA }
+
+enum VisitStatus {
+  upcoming,
+  due,
+  overdue,
+  completed,
+  missed,
+}
+
+enum ReferralStatus {
+  pending,
+  patient_reached_facility,
+  patient_did_not_attend,
+  returned_with_treatment_plan,
+}
+
+extension ReferralStatusExtension on ReferralStatus {
+  String get displayName {
+    switch (this) {
+      case ReferralStatus.pending:
+        return 'Pending Transfer / SMS Sent';
+      case ReferralStatus.patient_reached_facility:
+        return 'Patient Reached Facility';
+      case ReferralStatus.patient_did_not_attend:
+        return 'Patient Did Not Attend (Defaulted)';
+      case ReferralStatus.returned_with_treatment_plan:
+        return 'Returned with Treatment Plan';
+    }
+  }
+}
+
+class StageTransitionRecord {
+  final LifecycleStage stage;
+  final DateTime transitionDate;
+  final String note;
+
+  StageTransitionRecord({
+    required this.stage,
+    required this.transitionDate,
+    required this.note,
+  });
+}
 
 class AssessmentInput {
   // A. Child Malnutrition (6-59m)
@@ -174,6 +226,12 @@ class MemberModel {
   final String name;
   final String role; // Pregnant Mother, Husband, Child, Infant
   final PersonCategory category;
+  final LifecycleStage lifecycleStage;
+  final String? linkedMotherId;
+  final DateTime? eddDate;
+  final DateTime? deliveryDate;
+  final DateTime? birthDate;
+  final List<StageTransitionRecord> stageHistory;
   final int ageMonths;
   final double? latestMuacCm;
   final RiskTier riskStatus;
@@ -185,11 +243,147 @@ class MemberModel {
     required this.name,
     required this.role,
     this.category = PersonCategory.childUnder5,
+    LifecycleStage? lifecycleStage,
+    this.linkedMotherId,
+    this.eddDate,
+    this.deliveryDate,
+    this.birthDate,
+    List<StageTransitionRecord>? stageHistory,
     required this.ageMonths,
     this.latestMuacCm,
     required this.riskStatus,
     this.isTeenagePregnancy = false,
+  })  : lifecycleStage = lifecycleStage ?? _inferLifecycleStage(category),
+        stageHistory = stageHistory ?? [
+          StageTransitionRecord(
+            stage: lifecycleStage ?? _inferLifecycleStage(category),
+            transitionDate: DateTime.now().subtract(Duration(days: ageMonths * 30)),
+            note: 'Initial stage assignment on CHPS registration',
+          ),
+        ];
+
+  static LifecycleStage _inferLifecycleStage(PersonCategory category) {
+    switch (category) {
+      case PersonCategory.mother:
+        return LifecycleStage.pregnant;
+      case PersonCategory.newbornYoungInfant:
+        return LifecycleStage.newborn;
+      case PersonCategory.childUnder5:
+        return LifecycleStage.childUnder5;
+      case PersonCategory.other:
+      default:
+        return LifecycleStage.womanReproductiveAge;
+    }
+  }
+}
+
+class ScheduledVisitModel {
+  final String id;
+  final String memberId;
+  final String householdId;
+  final String memberName;
+  final String householdName;
+  final LifecycleStage lifecycleStage;
+  final String title;
+  final String contactName;
+  final DateTime dueDate;
+  final VisitStatus status;
+  final String reasonText;
+  final bool isUnscheduled;
+  final DateTime? completedDate;
+
+  int get daysOverdue {
+    if (status == VisitStatus.completed) return 0;
+    final diff = DateTime.now().difference(dueDate).inDays;
+    return diff > 0 ? diff : 0;
+  }
+
+  ScheduledVisitModel({
+    required this.id,
+    required this.memberId,
+    required this.householdId,
+    required this.memberName,
+    required this.householdName,
+    required this.lifecycleStage,
+    required this.title,
+    required this.contactName,
+    required this.dueDate,
+    required this.status,
+    required this.reasonText,
+    this.isUnscheduled = false,
+    this.completedDate,
   });
+
+  ScheduledVisitModel copyWith({
+    VisitStatus? status,
+    DateTime? completedDate,
+  }) {
+    return ScheduledVisitModel(
+      id: id,
+      memberId: memberId,
+      householdId: householdId,
+      memberName: memberName,
+      householdName: householdName,
+      lifecycleStage: lifecycleStage,
+      title: title,
+      contactName: contactName,
+      dueDate: dueDate,
+      status: status ?? this.status,
+      reasonText: reasonText,
+      isUnscheduled: isUnscheduled,
+      completedDate: completedDate ?? this.completedDate,
+    );
+  }
+}
+
+class ReferralModel {
+  final String id;
+  final String householdId;
+  final String memberId;
+  final String patientName;
+  final RiskTier riskTier;
+  final String facilityName;
+  final String facilityTier; // 'District Hospital', 'Health Centre / CHPS Clinic'
+  final String referralNote;
+  final List<String> dangerSigns;
+  final ReferralStatus status;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  ReferralModel({
+    required this.id,
+    required this.householdId,
+    required this.memberId,
+    required this.patientName,
+    required this.riskTier,
+    required this.facilityName,
+    required this.facilityTier,
+    required this.referralNote,
+    required this.dangerSigns,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  ReferralModel copyWith({
+    ReferralStatus? status,
+    DateTime? updatedAt,
+  }) {
+    return ReferralModel(
+      id: id,
+      householdId: householdId,
+      memberId: memberId,
+      patientName: patientName,
+      riskTier: riskTier,
+      facilityName: facilityName,
+      facilityTier: facilityTier,
+      referralNote: referralNote,
+      dangerSigns: dangerSigns,
+      status: status ?? this.status,
+      createdAt: createdAt,
+      updatedAt: updatedAt ?? DateTime.now(),
+    );
+  }
 }
 
 class UserProfileModel {

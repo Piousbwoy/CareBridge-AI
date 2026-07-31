@@ -11,6 +11,7 @@ class ChildAssessmentScreen extends StatefulWidget {
   final double initialMuac;
   final bool initialOedema;
   final Map<String, bool> initialDangerSigns;
+  final ScheduledVisitModel? visitContext;
   final Function(double muac, bool oedema, Map<String, bool> dangerSigns) onNext;
   final VoidCallback? onBack;
 
@@ -19,6 +20,7 @@ class ChildAssessmentScreen extends StatefulWidget {
     this.initialMuac = 13.0,
     this.initialOedema = false,
     this.initialDangerSigns = const {},
+    this.visitContext,
     required this.onNext,
     this.onBack,
   });
@@ -243,7 +245,7 @@ class _ChildAssessmentScreenState extends State<ChildAssessmentScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
-        title: Text('12. Child Assessment (6–59m)', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        title: Text('Child Assessment (6–59m)', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
         leading: widget.onBack != null
             ? IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: widget.onBack)
             : null,
@@ -264,6 +266,38 @@ class _ChildAssessmentScreenState extends State<ChildAssessmentScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (widget.visitContext != null) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentTeal.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.accentTeal.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.event_note_rounded, color: AppTheme.accentTeal, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'PRE-LOADED VISIT CONTEXT',
+                                    style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.accentTeal),
+                                  ),
+                                  Text(
+                                    '${widget.visitContext!.contactName}: ${widget.visitContext!.title}',
+                                    style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     // Section A header
                     Container(
                       padding: const EdgeInsets.all(16),

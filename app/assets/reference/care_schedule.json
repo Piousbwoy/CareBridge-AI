@@ -1,0 +1,106 @@
+{
+  "anc_schedule": {
+    "protocol": "GHS 4-Visit Focused ANC / 8-Contact WHO Model",
+    "contacts": [
+      {
+        "contact_number": 1,
+        "name": "ANC Contact 1 (Booking)",
+        "target_week_min": 8,
+        "target_week_max": 12,
+        "description": "Early booking, baseline Hb, blood pressure, syphilis/HIV screening, tetanus toxoid, ITN distribution."
+      },
+      {
+        "contact_number": 2,
+        "name": "ANC Contact 2",
+        "target_week_min": 20,
+        "target_week_max": 24,
+        "description": "Fetal growth check, IPTp-SP dose 1 (malaria), anaemia re-check, anomaly/movement awareness."
+      },
+      {
+        "contact_number": 3,
+        "name": "ANC Contact 3",
+        "target_week_min": 26,
+        "target_week_max": 28,
+        "description": "IPTp-SP dose 2, pre-eclampsia screening (BP & severe headache check), Hb re-test."
+      },
+      {
+        "contact_number": 4,
+        "name": "ANC Contact 4",
+        "target_week_min": 32,
+        "target_week_max": 34,
+        "description": "IPTp-SP dose 3, birth preparedness plan, fetal lie & movement assessment, referral preparation."
+      },
+      {
+        "contact_number": 5,
+        "name": "ANC Contact 5 (Late Pregnancy)",
+        "target_week_min": 36,
+        "target_week_max": 38,
+        "description": "Final delivery plan, danger sign review, hospital referral arrangement if high risk."
+      }
+    ]
+  },
+  "pnc_schedule": {
+    "protocol": "GHS Postpartum & Neonatal Care Schedule",
+    "contacts": [
+      {
+        "contact_number": 1,
+        "name": "PNC Contact 1 (First 48 Hours)",
+        "target_day_min": 0,
+        "target_day_max": 2,
+        "description": "Postpartum hemorrhage (PPH) check, neonatal resuscitation/thermal care, early breastfeeding, jaundice screen."
+      },
+      {
+        "contact_number": 2,
+        "name": "PNC Contact 2 (Day 6)",
+        "target_day_min": 5,
+        "target_day_max": 7,
+        "description": "Uterine involution check, cord care inspection, infant feeding assessment, maternal mood/fever check."
+      },
+      {
+        "contact_number": 3,
+        "name": "PNC Contact 3 (Week 6)",
+        "target_day_min": 38,
+        "target_day_max": 42,
+        "description": "6-week postnatal check, infant Penta-1 vaccine, BCG verification, maternal family planning discussion."
+      }
+    ]
+  },
+  "child_under5_schedule": {
+    "protocol": "GHS Child Growth Monitoring & EPI Schedule",
+    "contacts": [
+      {
+        "name": "EPI 6-Week Touchpoint (Penta 1, PCV 1, Rota 1)",
+        "target_age_months": 1.5,
+        "description": "Immunization, MUAC baseline, growth charting."
+      },
+      {
+        "name": "EPI 10-Week Touchpoint (Penta 2, PCV 2, Rota 2)",
+        "target_age_months": 2.5,
+        "description": "Immunization, weight monitoring, developmental milestones."
+      },
+      {
+        "name": "EPI 14-Week Touchpoint (Penta 3, PCV 3, IPV)",
+        "target_age_months": 3.5,
+        "description": "Immunization, infant feeding assessment."
+      },
+      {
+        "name": "EPI 9-Month Touchpoint (Measles-Rubella 1, Yellow Fever)",
+        "target_age_months": 9.0,
+        "description": "Measles vaccination, Vitamin A supplementation, MUAC screening."
+      },
+      {
+        "name": "Monthly Growth Check (Under 1 Year)",
+        "frequency": "monthly",
+        "target_age_months_max": 12,
+        "description": "Monthly MUAC & weight monitoring for SAM/MAM early detection."
+      },
+      {
+        "name": "Quarterly Growth & Deworming (1-5 Years)",
+        "frequency": "quarterly",
+        "target_age_months_min": 12,
+        "target_age_months_max": 60,
+        "description": "Quarterly MUAC screening, Vitamin A & Albendazole deworming."
+      }
+    ]
+  }
+}
