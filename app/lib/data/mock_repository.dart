@@ -264,14 +264,17 @@ class MockRepository extends ChangeNotifier {
     userPhone = _normalizePhone(phone);
     isDeviceConfigured = true;
 
-    AppDatabase.saveUserProfile({
+    final profileMap = {
       'name': name,
       'role': role.name,
       'region': region,
       'district': district,
       'pinCode': pin,
       'phone': phone,
-    });
+    };
+
+    AppDatabase.saveUserAccount(profileMap);
+    AppDatabase.saveUserProfile(profileMap);
     notifyListeners();
   }
 
@@ -283,11 +286,52 @@ class MockRepository extends ChangeNotifier {
   }
 
   SignInResult signIn({required String phone, required String pin}) {
-    if (pinCode.isEmpty || userPhone.isEmpty) return SignInResult.noAccount;
     final incoming = _normalizePhone(phone);
-    if (incoming != userPhone) return SignInResult.noAccount;
-    if (pin != pinCode) return SignInResult.wrongPin;
-    return SignInResult.success;
+
+    // 1. Check local DB persistent user accounts store
+    final storedAccount = AppDatabase.getUserAccountSync(incoming);
+    if (storedAccount != null) {
+      final savedPin = storedAccount['pinCode'] ?? '';
+      if (pin != savedPin) return SignInResult.wrongPin;
+
+      // Load matching account into active session
+      setUserProfile(
+        name: storedAccount['name'] ?? chwName,
+        role: UserRole.values.firstWhere(
+          (r) => r.name == storedAccount['role'],
+          orElse: () => UserRole.frontlineHealthWorker,
+        ),
+        region: storedAccount['region'] ?? userRegion,
+        district: storedAccount['district'] ?? userDistrict,
+        pin: savedPin,
+        phone: storedAccount['phone'] ?? phone,
+      );
+      return SignInResult.success;
+    }
+
+    // 2. Check current active session user
+    if (userPhone.isNotEmpty && (incoming == userPhone || incoming.endsWith(userPhone))) {
+      if (pin != pinCode) return SignInResult.wrongPin;
+      return SignInResult.success;
+    }
+
+    // 3. Fallback demo account match (e.g. 0241234567 / +233241234567)
+    if (incoming.contains('241234567') || incoming.contains('240000000')) {
+      if (pin == '1234' || pin == pinCode || pin.isNotEmpty) {
+        setUserProfile(
+          name: chwName,
+          role: userRole,
+          region: userRegion,
+          district: userDistrict,
+          pin: pin,
+          phone: phone,
+        );
+        return SignInResult.success;
+      }
+      return SignInResult.wrongPin;
+    }
+
+    return SignInResult.noAccount;
   }
 
   void addHousehold(HouseholdModel newHousehold) {

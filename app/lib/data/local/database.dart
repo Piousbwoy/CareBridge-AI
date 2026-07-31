@@ -149,7 +149,15 @@ class AppDatabase {
   static final List<ReferralModel> _referralsList = [];
   static final List<Map<String, dynamic>> _syncQueueStore = [];
   static final List<Map<String, dynamic>> _overrideLogsStore = [];
+  static final Map<String, Map<String, dynamic>> _userAccountsStore = {};
   static Map<String, dynamic>? _userProfileStore;
+
+  static String normalizePhone(String raw) {
+    final digits = raw.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.startsWith('233')) return digits;
+    if (digits.startsWith('0') && digits.length >= 9) return '233${digits.substring(1)}';
+    return digits;
+  }
 
   static bool _initialized = false;
 
@@ -180,6 +188,15 @@ class AppDatabase {
       final profileStr = await _secureStorage.read(key: 'cb_user_profile');
       if (profileStr != null) {
         _userProfileStore = jsonDecode(profileStr);
+      }
+
+      final accountsStr = await _secureStorage.read(key: 'cb_user_accounts');
+      if (accountsStr != null) {
+        final Map<String, dynamic> rawMap = jsonDecode(accountsStr);
+        _userAccountsStore.clear();
+        rawMap.forEach((k, v) {
+          _userAccountsStore[k] = Map<String, dynamic>.from(v);
+        });
       }
 
       final householdsStr = await _secureStorage.read(key: 'cb_households');
@@ -220,6 +237,7 @@ class AppDatabase {
       if (_userProfileStore != null) {
         await _secureStorage.write(key: 'cb_user_profile', value: jsonEncode(_userProfileStore));
       }
+      await _secureStorage.write(key: 'cb_user_accounts', value: jsonEncode(_userAccountsStore));
       final householdsList = _householdsMap.values.map((h) => {
         'id': h.id,
         'name': h.name,
@@ -245,12 +263,36 @@ class AppDatabase {
 
   static Future<void> saveUserProfile(Map<String, dynamic> profile) async {
     _userProfileStore = Map<String, dynamic>.from(profile);
+    final phone = normalizePhone(profile['phone'] ?? '');
+    if (phone.isNotEmpty) {
+      _userAccountsStore[phone] = Map<String, dynamic>.from(profile);
+    }
     await _persistAll();
   }
 
   static Future<Map<String, dynamic>?> getUserProfile() async {
     await init();
     return _userProfileStore;
+  }
+
+  static Future<void> saveUserAccount(Map<String, dynamic> account) async {
+    await init();
+    final phone = normalizePhone(account['phone'] ?? '');
+    if (phone.isNotEmpty) {
+      _userAccountsStore[phone] = Map<String, dynamic>.from(account);
+      await _persistAll();
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getUserAccount(String phone) async {
+    await init();
+    final norm = normalizePhone(phone);
+    return _userAccountsStore[norm];
+  }
+
+  static Map<String, dynamic>? getUserAccountSync(String phone) {
+    final norm = normalizePhone(phone);
+    return _userAccountsStore[norm];
   }
 
   static Future<void> saveHousehold(HouseholdModel household) async {
