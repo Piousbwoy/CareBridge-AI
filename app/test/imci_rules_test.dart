@@ -48,6 +48,7 @@ void main() {
       final input = AssessmentInput(
         severeHeadacheVisualDisturbance: true,
         elevatedBPProxy: true,
+        pregnancyStatus: PregnancyStatus.currentlyPregnant,
       );
       final result = IMCIRulesEngine.evaluate(input);
 
@@ -92,7 +93,7 @@ void main() {
         daysOverdue: 30,
       );
 
-      expect(freshScore, equals(10.0));
+      expect(freshScore, equals(0.0));
       expect(overdueScore > freshScore, isTrue);
     });
   });

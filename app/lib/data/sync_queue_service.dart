@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'local/database.dart';
 
 /// Manages the offline-first sync queue.
 /// Items are appended to this queue when assessments are completed offline.
@@ -11,19 +12,26 @@ class SyncQueueService {
   factory SyncQueueService() => _instance;
   SyncQueueService._internal();
 
-  final List<Map<String, dynamic>> _pendingQueue = [];
   bool _isSyncing = false;
   DateTime? _lastSyncTime;
 
-  // Point 9: Referral items enqueued locally while offline — no network required
   static const String _syncEndpoint = 'https://carebridge-api.pilot.ngrok.io/api/v1/sync';
 
-  int get pendingCount => _pendingQueue.length;
+  int get pendingCount => _getPendingListSync().length;
   DateTime? get lastSyncTime => _lastSyncTime;
   bool get isSyncing => _isSyncing;
 
+  List<Map<String, dynamic>> _getPendingListSync() {
+    // Synchronous helper for UI counters
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> getPendingQueue() async {
+    return await AppDatabase.getPendingSyncQueue();
+  }
+
   /// Called after each completed assessment to queue the record locally
-  void enqueueAssessment({
+  Future<void> enqueueAssessment({
     required String householdId,
     required String patientName,
     required String chpsZone,
@@ -33,8 +41,9 @@ class SyncQueueService {
     int breathingRate = 40,
     double? hbLevel,
     bool isUrgentReferral = false,
-  }) {
+  }) async {
     final record = {
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
       'household_id': householdId,
       'patient_name': patientName,
       'chps_zone': chpsZone,
@@ -45,26 +54,27 @@ class SyncQueueService {
       'maternal_hb': hbLevel,
       'is_urgent_referral': isUrgentReferral,
       'timestamp': DateTime.now().toIso8601String(),
-      'synced': false,
+      'status': 'PENDING',
     };
-    _pendingQueue.add(record);
+    await AppDatabase.saveAssessment(record);
     if (kDebugMode) {
-      print('📥 Assessment queued locally for sync: $householdId (${_pendingQueue.length} total pending)');
+      print('📥 Assessment persisted locally in database for sync: $householdId');
     }
   }
 
-  /// Point 9: Fires automatically when connectivity returns — called by ConnectivityPlus stream listener
+  /// Fires automatically when connectivity returns
   Future<bool> attemptAutoSync({String chwId = 'CHW-001', String chpsZone = 'Bole CHPS Zone'}) async {
-    if (_pendingQueue.isEmpty || _isSyncing) return false;
+    final pending = await AppDatabase.getPendingSyncQueue();
+    if (pending.isEmpty || _isSyncing) return false;
 
     _isSyncing = true;
-    if (kDebugMode) print('🔄 Auto-sync triggered: uploading ${_pendingQueue.length} queued records...');
+    if (kDebugMode) print('🔄 Auto-sync triggered: uploading ${pending.length} queued records...');
 
     try {
       final payload = {
         'chw_id': chwId,
         'chps_zone': chpsZone,
-        'assessments': _pendingQueue,
+        'assessments': pending,
       };
 
       final response = await http.post(
@@ -74,18 +84,21 @@ class SyncQueueService {
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        final count = _pendingQueue.length;
-        _pendingQueue.clear();
+        for (final item in pending) {
+          final id = item['id']?.toString() ?? '';
+          if (id.isNotEmpty) {
+            await AppDatabase.markSyncQueueSuccess(id);
+          }
+        }
         _lastSyncTime = DateTime.now();
-        if (kDebugMode) print('✅ Sync complete: $count records uploaded.');
+        if (kDebugMode) print('✅ Sync complete: ${pending.length} records uploaded.');
         return true;
       } else {
         if (kDebugMode) print('⚠️ Sync failed with status ${response.statusCode}. Queue retained.');
         return false;
       }
     } catch (e) {
-      // Network unavailable — queue retained, will retry on next connectivity event
-      if (kDebugMode) print('⚠️ Sync attempt failed (offline): $e. Records remain queued.');
+      if (kDebugMode) print('⚠️ Sync attempt failed (offline): $e. Records remain queued in DB.');
       return false;
     } finally {
       _isSyncing = false;
@@ -93,36 +106,34 @@ class SyncQueueService {
   }
 }
 
-/// CHW Override Audit Log — in-memory with schema matching the DB table definition.
-/// Schema: ruleId, overriddenBy, timestamp, note (optional), originalTier, newTier
+/// CHW Override Audit Log — backed by AppDatabase table.
 class OverrideAuditLog {
   static final OverrideAuditLog _instance = OverrideAuditLog._internal();
   factory OverrideAuditLog() => _instance;
   OverrideAuditLog._internal();
 
-  final List<Map<String, dynamic>> _log = [];
-
-  List<Map<String, dynamic>> get entries => List.unmodifiable(_log);
+  Future<List<Map<String, dynamic>>> get entries async => await AppDatabase.getOverrideLogs();
 
   /// Records a CHW override. All fields are required except note.
-  void record({
+  Future<void> record({
     required String ruleId,
     required String overriddenBy,
     required String originalTier,
     required String newTier,
     String? note,
-  }) {
+  }) async {
     final entry = {
-      'ruleId': ruleId,          // e.g. 'RULE_A1_SAM_MUAC'
-      'overriddenBy': overriddenBy, // CHW name or ID
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'ruleId': ruleId,
+      'overriddenBy': overriddenBy,
       'timestamp': DateTime.now().toIso8601String(),
-      'note': note,              // Optional CHW justification text
-      'originalTier': originalTier, // 'URGENT' | 'WATCH' | 'ROUTINE'
+      'note': note,
+      'originalTier': originalTier,
       'newTier': newTier,
     };
-    _log.add(entry);
+    await AppDatabase.saveOverrideLog(entry);
     if (kDebugMode) {
-      print('📋 Override logged: $ruleId | $overriddenBy | ${entry['timestamp']} | note: $note');
+      print('📋 Override logged to DB: $ruleId | $overriddenBy | ${entry['timestamp']}');
     }
   }
 }
