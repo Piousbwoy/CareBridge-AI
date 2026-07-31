@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'core/theme.dart';
 import 'data/mock_repository.dart';
 import 'data/sync_queue_service.dart';
+import 'data/local/database.dart';
 import 'domain/ai/muac_trend_classifier.dart';
 import 'domain/models/clinical_models.dart';
 import 'domain/rules/imci_rules_engine.dart';
@@ -31,7 +32,9 @@ import 'presentation/screens/screen_assess_category_picker.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppDatabase.init();
   await CareScheduleEngine.initialize();
+  await MockRepository().loadFromLocalDatabase();
   runApp(const CareBridgeApp());
 }
 

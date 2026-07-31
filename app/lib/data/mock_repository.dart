@@ -225,7 +225,8 @@ class MockRepository extends ChangeNotifier {
     ));
   }
 
-  void _loadFromLocalDatabase() async {
+  Future<void> loadFromLocalDatabase() async {
+    await AppDatabase.init();
     final profile = await AppDatabase.getUserProfile();
     if (profile != null) {
       chwName = profile['name'] ?? chwName;

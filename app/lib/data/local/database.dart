@@ -140,7 +140,10 @@ class OverrideLogsTable extends Table {
 
 class AppDatabase {
   static const String _dbKeyName = 'carebridge_db_sqlcipher_passphrase';
-  static const _secureStorage = FlutterSecureStorage();
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    webOptions: WebOptions(dbName: 'carebridge_sec_db', publicKey: 'carebridge_sec_key'),
+  );
 
   static final Map<String, HouseholdModel> _householdsMap = {};
   static final Map<String, MemberModel> _membersMap = {};
