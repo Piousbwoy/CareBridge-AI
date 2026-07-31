@@ -1,15 +1,15 @@
 import 'package:flutter/foundation.dart';
 import '../models/clinical_models.dart';
 
+/// Clinical MUAC Velocity & Trend Classifier
+/// Evaluates sequential MUAC measurements to detect growth trajectory velocity and rapid decline heuristics.
 class MUACTrendClassifier {
-  static const String modelAssetPath = 'assets/models/muac_trend_classifier.tflite';
-
   static Future<TrendResult> analyzeTrend(List<double> muacHistory) async {
     if (muacHistory.length < 2) {
       return TrendResult(
         direction: TrendDirection.INSUFFICIENT_DATA,
         probability: 0.0,
-        summary: 'Not enough visit history yet to assess a trend.',
+        summary: 'Not enough visit history yet to assess a velocity trend.',
         isModelAvailable: true,
       );
     }
@@ -17,11 +17,11 @@ class MUACTrendClassifier {
       final result = await compute(_predictInIsolate, muacHistory);
       return result;
     } catch (e) {
-      if (kDebugMode) print('TFLite fallback: $e');
+      if (kDebugMode) print('Velocity heuristic error: $e');
       return TrendResult(
         direction: TrendDirection.INSUFFICIENT_DATA,
         probability: 0.0,
-        summary: 'Trend model unavailable — rely on the rule-based result above.',
+        summary: 'Trend analysis unavailable — rely on IMCI rule evaluation.',
         isModelAvailable: false,
       );
     }
@@ -37,7 +37,7 @@ class MUACTrendClassifier {
       return TrendResult(
         direction: TrendDirection.WORSENING,
         probability: 0.88,
-        summary: 'High risk trend: MUAC dropped by $dropPercent% over recent visits.',
+        summary: 'High risk trend (Velocity Heuristic): MUAC dropped by $dropPercent% over recent visits.',
       );
     } else if (delta < 0) {
       return TrendResult(
@@ -49,7 +49,7 @@ class MUACTrendClassifier {
       return TrendResult(
         direction: TrendDirection.STABLE,
         probability: 0.90,
-        summary: 'Stable trajectory across sequential visits.',
+        summary: 'Stable growth trajectory across sequential visits.',
       );
     } else {
       return TrendResult(

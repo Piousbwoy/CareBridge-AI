@@ -2,11 +2,15 @@ import 'dart:math';
 import '../models/clinical_models.dart';
 
 /// Algorithmic Household & Patient Prioritization Engine
-/// Computes a dynamic priority score P(h) in range [0.0, 100.0] using:
-/// 1. Clinical Risk Tier Base Weight (URGENT = 60, WATCH = 35, ROUTINE = 10)
-/// 2. Non-Linear Overdue Penalty: 40 * (1 - e^(-0.08 * days_overdue))
-/// 3. MUAC Loss Velocity Penalty: Up to +25 pts for rapid MUAC drop (>0.5 cm/wk)
-/// 4. Vulnerability Multiplier: Young Infant (<2m) = +15 pts, Severe Anaemia = +20 pts
+/// Guarantees Risk-Tier-First Ordering (URGENT > WATCH > ROUTINE)
+/// Score tiers:
+/// - URGENT: [1000.0, 1100.0]
+/// - WATCH: [500.0, 600.0]
+/// - ROUTINE: [0.0, 100.0]
+/// Sub-score factors break ties WITHIN the same tier:
+/// 1. Non-Linear Overdue Penalty: 40 * (1 - e^(-0.08 * days_overdue))
+/// 2. MUAC Loss Velocity Penalty: Up to +25 pts for rapid MUAC drop (>0.5 cm/wk)
+/// 3. Vulnerability Multiplier: Young Infant (<2m) = +15 pts, Severe Anaemia = +20 pts
 class PriorityScoringEngine {
   static double calculatePriorityScore({
     required RiskTier riskTier,
@@ -16,17 +20,17 @@ class PriorityScoringEngine {
     bool isSevereAnaemia = false,
     bool isTeenagePregnancy = false,
   }) {
-    // 1. Base score from clinical triage tier
-    double baseScore = 10.0;
+    // 1. Tier Base Weight (Guarantees Risk Tier First Ordering)
+    double tierBase = 0.0;
     switch (riskTier) {
       case RiskTier.URGENT:
-        baseScore = 60.0;
+        tierBase = 1000.0;
         break;
       case RiskTier.WATCH:
-        baseScore = 35.0;
+        tierBase = 500.0;
         break;
       case RiskTier.ROUTINE:
-        baseScore = 10.0;
+        tierBase = 0.0;
         break;
     }
 
@@ -48,16 +52,18 @@ class PriorityScoringEngine {
     if (isSevereAnaemia) vulnerabilityBonus += 20.0;
     if (isTeenagePregnancy) vulnerabilityBonus += 10.0;
 
-    // 5. Total clamped score [0, 100]
-    final total = baseScore + overduePenalty + velocityPenalty + vulnerabilityBonus;
-    return min(100.0, max(0.0, total));
+    // Sub-tier score range [0.0, 100.0]
+    final subScore = min(100.0, max(0.0, overduePenalty + velocityPenalty + vulnerabilityBonus));
+
+    // Total score combining Tier Base + Sub-score
+    return tierBase + subScore;
   }
 
   /// Categorizes score into visual urgency priority band
   static String getPriorityBand(double score) {
-    if (score >= 75.0) return 'CRITICAL';
-    if (score >= 50.0) return 'HIGH';
-    if (score >= 30.0) return 'MEDIUM';
+    if (score >= 1000.0) return 'CRITICAL';
+    if (score >= 500.0) return 'HIGH';
+    if (score >= 50.0) return 'MEDIUM';
     return 'LOW';
   }
 }

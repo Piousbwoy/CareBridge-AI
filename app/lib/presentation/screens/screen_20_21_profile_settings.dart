@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme.dart';
+import '../../data/mock_repository.dart';
 
 class ProfileSettingsScreen extends StatefulWidget {
   final VoidCallback onLogout;
@@ -19,7 +20,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
-        title: Text('20 & 21. Profile & Settings', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        title: Text('Profile & Settings', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
         elevation: 0,
       ),
       body: SafeArea(
@@ -52,9 +53,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Ama Akosua', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
-                          Text('Community Health Officer (CHO)', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMedium)),
-                          Text('Bole CHPS Zone, Savannah Region', style: GoogleFonts.inter(fontSize: 11, color: AppTheme.accentTeal, fontWeight: FontWeight.w600)),
+                          Text(MockRepository().chwName, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+                          Text(MockRepository().userRole.name == 'districtOfficer' ? 'District Health Officer' : 'Community Health Officer (CHO)', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMedium)),
+                          Text(MockRepository().chwZone, style: GoogleFonts.inter(fontSize: 11, color: AppTheme.accentTeal, fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),

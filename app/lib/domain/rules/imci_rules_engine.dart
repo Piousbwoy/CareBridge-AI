@@ -131,7 +131,7 @@ class IMCIRulesEngine {
       codes.add('MAT_PALLOR_PROXY');
     }
 
-    if (input.severeHeadacheVisualDisturbance && input.elevatedBPProxy) {
+    if (input.severeHeadacheVisualDisturbance && input.elevatedBPProxy && input.pregnancyStatus != PregnancyStatus.neither) {
       isUrgent = true;
       reasons.add('GHS Obstetric Alert: Severe Headache + Elevated BP (Preeclampsia Risk)');
       codes.add('MAT_PREECLAMPSIA');
@@ -140,27 +140,27 @@ class IMCIRulesEngine {
     // ──────────────────────────────────────────────────────────────────────────
     // DOMAIN E: MATERNAL DANGER SIGNS & PPH
     // ──────────────────────────────────────────────────────────────────────────
-    if (input.vaginalBleeding) {
+    if (input.vaginalBleeding && input.pregnancyStatus != PregnancyStatus.neither) {
       isUrgent = true;
       reasons.add('Maternal Obstetric Danger Sign: Antepartum Vaginal Bleeding');
       codes.add('MAT_BLEEDING');
     }
-    if (input.maternalConvulsions) {
+    if (input.maternalConvulsions && input.pregnancyStatus != PregnancyStatus.neither) {
       isUrgent = true;
       reasons.add('Maternal Obstetric Danger Sign: Convulsions / Fits (Eclampsia)');
       codes.add('MAT_ECLAMPSIA');
     }
-    if (input.severeHeadacheBlurredVision) {
+    if (input.severeHeadacheBlurredVision && input.pregnancyStatus != PregnancyStatus.neither) {
       isUrgent = true;
       reasons.add('Maternal Danger Sign: Severe headache or blurred vision');
       codes.add('MAT_HEADACHE_VISION');
     }
-    if (input.reducedAbsentFetalMovement) {
+    if (input.reducedAbsentFetalMovement && input.pregnancyStatus == PregnancyStatus.currentlyPregnant) {
       isUrgent = true;
       reasons.add('Maternal Danger Sign: Reduced or absent fetal movement');
       codes.add('MAT_REDUCED_FETAL_MOV');
     }
-    if (input.postpartumHeavyBleeding) {
+    if (input.postpartumHeavyBleeding && input.pregnancyStatus == PregnancyStatus.postpartum) {
       isUrgent = true;
       reasons.add('Postpartum Danger Sign: Heavy vaginal bleeding (PPH Risk)');
       codes.add('MAT_PPH_BLEEDING');

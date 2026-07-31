@@ -25,6 +25,7 @@ import 'presentation/screens/screen_16_referral_action.dart';
 import 'presentation/screens/screen_17_local_nutrition.dart';
 import 'presentation/screens/screen_18_ai_care_recommendations.dart';
 import 'presentation/screens/screen_19_sync_status.dart';
+import 'presentation/screens/screen_web_only_notice.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -115,7 +116,19 @@ class _CareBridgeAppState extends State<CareBridgeApp> {
           onBackToSignIn: () => setState(() => _currentStep = 'SIGNIN'),
         );
       case 'PIN_LOGIN':
-        return PinLoginScreen(onPinSuccess: () => setState(() => _currentStep = 'MAIN_APP'));
+        return PinLoginScreen(onPinSuccess: () {
+          final repo = MockRepository();
+          // District Officers must use the web dashboard — redirect them
+          if (repo.userRole == UserRole.districtOfficer) {
+            setState(() => _currentStep = 'WEB_ONLY_NOTICE');
+          } else {
+            setState(() => _currentStep = 'MAIN_APP');
+          }
+        });
+      case 'WEB_ONLY_NOTICE':
+        return WebOnlyNoticeScreen(
+          onBack: () => setState(() => _currentStep = 'SIGNIN'),
+        );
       case 'MAIN_APP':
       default:
         return MainNavigationShell(onLogout: () => setState(() => _currentStep = 'SIGNIN'));
@@ -136,6 +149,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
 
   // Assessment state
   HouseholdModel? _selectedHousehold;
+  MemberModel? _selectedMember;
   int _assessmentStep = 0;
 
   // Collected clinical parameters
@@ -145,6 +159,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   int _rr = 62;
   double _temp = 37.8;
   Map<String, bool> _infantDanger = {};
+  PregnancyStatus _pregnancyStatus = PregnancyStatus.currentlyPregnant;
   double? _hb = 8.4;
   bool _pallorProxy = false;
   Map<String, bool> _maternalDanger = {};
@@ -160,8 +175,6 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   void initState() {
     super.initState();
     _selectedHousehold = MockRepository().households.first;
-    // Point 9: Simulate connectivity listener — in production, ConnectivityPlus stream
-    // fires _syncQueue.attemptAutoSync() on ConnectivityResult.mobile / .wifi events
   }
 
   /// Runs both AI layers fully offline — no network call anywhere in this chain
@@ -183,12 +196,14 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       notFeedingWell: _infantDanger['notFeedingWell'] ?? false,
       infantConvulsionsHistory: _infantDanger['infantConvulsionsHistory'] ?? false,
       jaundiceEarlyOrYellowPalms: _infantDanger['jaundiceEarlyOrYellowPalms'] ?? false,
+      pregnancyStatus: _pregnancyStatus,
       maternalHb: _hb,
       conjunctivaPalmarPallorProxy: _pallorProxy,
       vaginalBleeding: _maternalDanger['vaginalBleeding'] ?? false,
       maternalConvulsions: _maternalDanger['maternalConvulsions'] ?? false,
       severeHeadacheBlurredVision: _maternalDanger['severeHeadacheBlurredVision'] ?? false,
       reducedAbsentFetalMovement: _maternalDanger['reducedAbsentFetalMovement'] ?? false,
+      postpartumHeavyBleeding: _maternalDanger['postpartumHeavyBleeding'] ?? false,
       weeksOverdue: ((_selectedHousehold?.daysOverdue ?? 0) / 7).ceil(),
     );
 
@@ -211,6 +226,17 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       hbLevel: _hb,
       isUrgentReferral: ruleRes.overallTier == RiskTier.URGENT,
     );
+
+    // Update live repository & persist assessment record
+    if (_selectedHousehold != null) {
+      MockRepository().recordAssessment(
+        householdId: _selectedHousehold!.id,
+        memberId: _selectedMember?.id,
+        tier: ruleRes.overallTier,
+        muac: _muac,
+        reasons: ruleRes.reasons,
+      );
+    }
 
     setState(() {
       _activeRuleResult = ruleRes;
@@ -454,12 +480,24 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     }
     return HouseholdDetailsScreen(
       household: _selectedHousehold!,
-      onStartAssessment: () => setState(() {
-        _selectedTabIndex = 1;
-        _assessmentStep = 1;
+      onStartMemberAssessment: (member) => setState(() {
+        _selectedMember = member;
+        _assessmentStep = _categoryToStartStep(member.category);
+      }),
+      onAddNewPerson: (category) => setState(() {
+        _assessmentStep = _categoryToStartStep(category);
       }),
       onBack: () => setState(() => _assessmentStep = 0),
     );
+  }
+
+  int _categoryToStartStep(PersonCategory category) {
+    switch (category) {
+      case PersonCategory.childUnder5: return 1;  // screen 12 child assessment
+      case PersonCategory.newbornYoungInfant: return 2; // screen 13 infant assessment
+      case PersonCategory.mother: return 3; // screen 14 maternal assessment
+      default: return 1;
+    }
   }
 
   Widget _buildReferralScreen() {
@@ -492,8 +530,11 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         );
       case 3:
         return MaternalAssessmentScreen(
-          onCompleteAssessment: (hb, pallor, maternalSigns) {
-            _hb = hb; _pallorProxy = pallor; _maternalDanger = maternalSigns;
+          onCompleteAssessment: (hb, pallor, maternalSigns, status) {
+            _hb = hb;
+            _pallorProxy = pallor;
+            _maternalDanger = maternalSigns;
+            _pregnancyStatus = status;
             _runAIEngine(); // Fully offline — triggers both AI layers
           },
         );

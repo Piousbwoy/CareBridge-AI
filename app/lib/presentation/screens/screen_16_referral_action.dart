@@ -14,12 +14,13 @@ class ReferralActionScreen extends StatefulWidget {
   final double? muacCm;
   final int? breathingRate;
   final double? hbLevel;
+  final bool? bilateralOedema;
   final VoidCallback? onReferralComplete;
   final VoidCallback? onViewNutrition;
 
   const ReferralActionScreen({
     super.key,
-    this.householdName = 'Akua Serwaa',
+    this.householdName = 'Household Record',
     this.patientName,
     required this.householdId,
     this.autoReasons,
@@ -28,6 +29,7 @@ class ReferralActionScreen extends StatefulWidget {
     this.muacCm,
     this.breathingRate,
     this.hbLevel,
+    this.bilateralOedema,
     this.onReferralComplete,
     this.onViewNutrition,
   });
@@ -43,28 +45,38 @@ class _ReferralActionScreenState extends State<ReferralActionScreen> {
   bool _smsCopied = false;
 
   String get displayName => widget.patientName ?? widget.householdName;
-  List<String> get displayReasons => widget.autoReasons ?? widget.reasons ?? ['MUAC 10.5cm — SAM'];
+  List<String> get displayReasons => widget.autoReasons ?? widget.reasons ?? ['Clinical Assessment Completed'];
+
+  int get _parsedHouseholdId {
+    final digits = widget.householdId.replaceAll(RegExp(r'\D'), '');
+    return int.tryParse(digits) ?? 10000;
+  }
 
   String get _smsPayload {
+    final oedemaVal = widget.bilateralOedema ?? false;
+    final muacVal = widget.muacCm ?? 0.0;
+    final rrVal = widget.breathingRate ?? 0;
+    final hbVal = widget.hbLevel ?? 0.0;
+
     if (_useBitpackedHex) {
       return SMSCompressor.encodeBitpackedHex(
-        householdIdNumber: 10041,
-        muacMm: ((widget.muacCm ?? 10.5) * 10).round(),
-        oedema: true,
-        rr: widget.breathingRate ?? 62,
-        hbGdlTimesTen: ((widget.hbLevel ?? 8.4) * 10).round(),
-        riskTierCode: widget.riskTier == 'URGENT' ? 2 : 1,
+        householdIdNumber: _parsedHouseholdId,
+        muacMm: (muacVal * 10).round(),
+        oedema: oedemaVal,
+        rr: rrVal,
+        hbGdlTimesTen: (hbVal * 10).round(),
+        riskTierCode: widget.riskTier == 'URGENT' ? 2 : (widget.riskTier == 'WATCH' ? 1 : 0),
         bitmaskDangerFlags: 0x8041,
       );
     } else {
       return SMSCompressor.compressReferral(
         householdId: widget.householdId,
-        muacCm: widget.muacCm ?? 10.5,
-        oedema: true,
-        breathingRate: widget.breathingRate ?? 62,
-        hbLevel: widget.hbLevel ?? 8.4,
+        muacCm: muacVal,
+        oedema: oedemaVal,
+        breathingRate: rrVal,
+        hbLevel: hbVal,
         riskTier: widget.riskTier,
-        ruleCodes: ['SAM', 'FAST_BR'],
+        ruleCodes: displayReasons.take(2).map((r) => r.split(':').first.replaceAll(' ', '_')).toList(),
       );
     }
   }
@@ -85,10 +97,14 @@ class _ReferralActionScreenState extends State<ReferralActionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Color tierColor = AppTheme.urgentRed;
+    if (widget.riskTier == 'WATCH') tierColor = AppTheme.watchAmber;
+    if (widget.riskTier == 'ROUTINE') tierColor = AppTheme.routineGreen;
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
-        title: Text('16. Referral Action & SMS', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        title: Text('Referral Action & SMS', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
         elevation: 0,
       ),
       body: SafeArea(
@@ -104,15 +120,15 @@ class _ReferralActionScreenState extends State<ReferralActionScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppTheme.urgentRed.withValues(alpha: 0.1),
+                        color: tierColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppTheme.urgentRed.withValues(alpha: 0.3)),
+                        border: Border.all(color: tierColor.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.all(10),
-                            decoration: const BoxDecoration(color: AppTheme.urgentRed, shape: BoxShape.circle),
+                            decoration: BoxDecoration(color: tierColor, shape: BoxShape.circle),
                             child: const Icon(Icons.send_rounded, color: Colors.white, size: 24),
                           ),
                           const SizedBox(width: 14),
@@ -120,9 +136,10 @@ class _ReferralActionScreenState extends State<ReferralActionScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('URGENT REFERRAL INITIATED', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.urgentRed, letterSpacing: 1.1)),
+                                Text('${widget.riskTier} REFERRAL INITIATED',
+                                    style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: tierColor, letterSpacing: 1.1)),
                                 Text(displayName, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
-                                Text('ID: ${widget.householdId}', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMedium)),
+                                Text('Household ID: ${widget.householdId}', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMedium)),
                               ],
                             ),
                           ),
@@ -137,43 +154,47 @@ class _ReferralActionScreenState extends State<ReferralActionScreen> {
                     const SizedBox(height: 6),
                     TextField(
                       controller: _facilityCtrl,
-                      decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.local_hospital_rounded, color: AppTheme.primaryNavy, size: 20),
-                        isDense: true,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.local_hospital_outlined, color: AppTheme.accentTeal),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.cardBorder)),
                       ),
-                      style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
                     ),
 
                     const SizedBox(height: 16),
 
-                    // Auto-populated Clinical Reasons
-                    Text('Clinical Reasons (Auto-Populated)', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textMedium)),
-                    const SizedBox(height: 6),
+                    // Reasons List Card
                     Container(
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: AppTheme.cardBorder),
+                        boxShadow: AppTheme.cardShadow(),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: displayReasons.map((r) => Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.check_circle_rounded, color: AppTheme.urgentRed, size: 16),
-                              const SizedBox(width: 8),
-                              Expanded(child: Text(r, style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textDark))),
-                            ],
-                          ),
-                        )).toList(),
+                        children: [
+                          Text('Clinical Reasons for Referral:', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+                          const SizedBox(height: 8),
+                          ...displayReasons.map((r) => Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle_rounded, size: 14, color: AppTheme.accentTeal),
+                                    const SizedBox(width: 8),
+                                    Expanded(child: Text(r, style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textDark))),
+                                  ],
+                                ),
+                              )),
+                        ],
                       ),
                     ),
 
                     const SizedBox(height: 16),
 
-                    // Low-Connectivity SMS Payload Preview Card
+                    // Bit-packed SMS Payload Section
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -181,21 +202,18 @@ class _ReferralActionScreenState extends State<ReferralActionScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Icon(Icons.sms_outlined, color: AppTheme.accentTeal, size: 20),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text('2G SMS COMPACT PAYLOAD', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy), overflow: TextOverflow.ellipsis),
-                                ),
-                                const SizedBox(width: 4),
-                                Text('60-Char Hex', style: GoogleFonts.inter(fontSize: 10, color: AppTheme.textMedium)),
-                                Transform.scale(
-                                  scale: 0.8,
-                                  child: Switch(
-                                    value: _useBitpackedHex,
-                                    onChanged: (v) => setState(() => _useBitpackedHex = v),
-                                    activeThumbColor: AppTheme.accentTeal,
-                                  ),
+                                Text('Compressed SMS Payload (2G)', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+                                Row(
+                                  children: [
+                                    Text('Bit-packed Hex', style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMedium)),
+                                    Switch(
+                                      value: _useBitpackedHex,
+                                      onChanged: (v) => setState(() => _useBitpackedHex = v),
+                                      activeColor: AppTheme.accentTeal,
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -252,15 +270,16 @@ class _ReferralActionScreenState extends State<ReferralActionScreen> {
                 height: 52,
                 child: ElevatedButton.icon(
                   onPressed: () {
+                    Clipboard.setData(ClipboardData(text: _smsPayload));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Referral submitted & SMS sent to ${_facilityCtrl.text}')),
+                      SnackBar(content: Text('Referral payload copied — paste into SMS app for ${_facilityCtrl.text}')),
                     );
                     _onComplete();
                   },
-                  icon: const Icon(Icons.send_rounded, color: Colors.white),
-                  label: Text('Send Referral & SMS', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  icon: const Icon(Icons.copy_rounded, color: Colors.white),
+                  label: Text('Copy Referral SMS Payload', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.urgentRed,
+                    backgroundColor: tierColor,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                 ),

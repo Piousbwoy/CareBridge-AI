@@ -7,20 +7,199 @@ import '../../domain/algorithms/priority_scoring_engine.dart';
 
 class HouseholdDetailsScreen extends StatelessWidget {
   final HouseholdModel household;
-  final VoidCallback onStartAssessment;
+  final Function(MemberModel) onStartMemberAssessment;
+  final Function(PersonCategory) onAddNewPerson;
   final VoidCallback onBack;
 
   const HouseholdDetailsScreen({
     super.key,
     required this.household,
-    required this.onStartAssessment,
+    required this.onStartMemberAssessment,
+    required this.onAddNewPerson,
     required this.onBack,
   });
+
+  void _showMemberChooser(BuildContext context, List<MemberModel> members) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Select Person to Assess',
+                  style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Choose an existing tagged member or add a new family member:',
+                  style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMedium),
+                ),
+                const SizedBox(height: 16),
+
+                // Existing tagged members
+                ...members.map((m) {
+                  String iconEmoji = '🧒';
+                  if (m.category == PersonCategory.mother) iconEmoji = '🤰';
+                  if (m.category == PersonCategory.newbornYoungInfant) iconEmoji = '👶';
+
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    leading: Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(color: AppTheme.accentTeal.withValues(alpha: 0.1), shape: BoxShape.circle),
+                      child: Center(child: Text(iconEmoji, style: const TextStyle(fontSize: 20))),
+                    ),
+                    title: Text(m.name, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15)),
+                    subtitle: Text(m.role, style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMedium)),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppTheme.textMedium),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      onStartMemberAssessment(m);
+                    },
+                  );
+                }),
+
+                const Divider(height: 24),
+
+                // Add new member path
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  leading: Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(color: AppTheme.primaryNavy.withValues(alpha: 0.1), shape: BoxShape.circle),
+                    child: const Icon(Icons.person_add_rounded, color: AppTheme.primaryNavy, size: 20),
+                  ),
+                  title: Text('Add New Person to Household', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.primaryNavy)),
+                  subtitle: Text('Mother, newborn infant, or child under 5', style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMedium)),
+                  trailing: const Icon(Icons.add_circle_outline_rounded, color: AppTheme.primaryNavy),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showCategorySelector(context);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAddPersonForm(BuildContext context, PersonCategory category) {
+    final nameCtrl = TextEditingController();
+    String categoryName = 'Child';
+    if (category == PersonCategory.mother) categoryName = 'Mother';
+    if (category == PersonCategory.newbornYoungInfant) categoryName = 'Newborn / Infant';
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Add $categoryName', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+          content: TextField(
+            controller: nameCtrl,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Full Name', prefixIcon: Icon(Icons.person_outline)),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accentTeal,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () {
+                final name = nameCtrl.text.trim().isEmpty ? '$categoryName (${household.name})' : nameCtrl.text.trim();
+                final newMember = MemberModel(
+                  id: 'M-${DateTime.now().millisecondsSinceEpoch}',
+                  householdId: household.id,
+                  name: name,
+                  role: categoryName,
+                  category: category,
+                  ageMonths: category == PersonCategory.newbornYoungInfant ? 1 : (category == PersonCategory.mother ? 288 : 24),
+                  riskStatus: RiskTier.ROUTINE,
+                );
+                MockRepository().addMember(newMember);
+                Navigator.pop(ctx);
+                onStartMemberAssessment(newMember);
+              },
+              child: Text('Start Assessment', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showCategorySelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Select Person Category',
+                  style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: const Text('🤰', style: TextStyle(fontSize: 26)),
+                  title: Text('Pregnant / Postpartum Mother', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+                  subtitle: Text('Maternal anaemia, preeclampsia, obstetric danger signs', style: GoogleFonts.inter(fontSize: 11)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showAddPersonForm(context, PersonCategory.mother);
+                  },
+                ),
+                ListTile(
+                  leading: const Text('👶', style: TextStyle(fontSize: 26)),
+                  title: Text('Newborn / Young Infant (< 2 Months)', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+                  subtitle: Text('Fast breathing, hypothermia, feeding inability', style: GoogleFonts.inter(fontSize: 11)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showAddPersonForm(context, PersonCategory.newbornYoungInfant);
+                  },
+                ),
+                ListTile(
+                  leading: const Text('🧒', style: TextStyle(fontSize: 26)),
+                  title: Text('Child (2 Months – 5 Years)', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+                  subtitle: Text('MUAC acute malnutrition, IMCI danger signs', style: GoogleFonts.inter(fontSize: 11)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showAddPersonForm(context, PersonCategory.childUnder5);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final repo = MockRepository();
-    final householdMembers = repo.members.where((m) => m.householdId == household.id).toList();
+    final householdMembers = repo.getMembersForHousehold(household.id);
     final priorityBand = PriorityScoringEngine.getPriorityBand(household.priorityScore);
 
     Color tierColor;
@@ -33,7 +212,7 @@ class HouseholdDetailsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
-        title: Text('11. Household Details', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        title: Text('Household Details', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: onBack,
@@ -55,7 +234,7 @@ class HouseholdDetailsScreen extends StatelessWidget {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: tierColor.withValues(alpha: 0.3)),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10)],
+                        boxShadow: AppTheme.cardShadow(),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,7 +284,7 @@ class HouseholdDetailsScreen extends StatelessWidget {
                             decoration: BoxDecoration(color: AppTheme.accentTeal, borderRadius: BorderRadius.circular(12)),
                             child: Center(
                               child: Text(
-                                household.priorityScore.toStringAsFixed(0),
+                                (household.priorityScore % 500).toStringAsFixed(0),
                                 style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
                               ),
                             ),
@@ -133,8 +312,18 @@ class HouseholdDetailsScreen extends StatelessWidget {
                     const SizedBox(height: 18),
 
                     // Household Members Section
-                    Text('Household Members (${householdMembers.length})', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
-                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Household Members (${householdMembers.length})', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+                        TextButton.icon(
+                          onPressed: () => _showCategorySelector(context),
+                          icon: const Icon(Icons.add, size: 16),
+                          label: Text('Add Person', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
 
                     ...householdMembers.map((m) {
                       Color statusColor;
@@ -144,43 +333,47 @@ class HouseholdDetailsScreen extends StatelessWidget {
                         case RiskTier.ROUTINE: statusColor = AppTheme.routineGreen; break;
                       }
 
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppTheme.cardBorder),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 40, height: 40,
-                              decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-                              child: Icon(
-                                m.role.contains('Mother') ? Icons.pregnant_woman_rounded : (m.role.contains('Child') || m.role.contains('Infant') ? Icons.child_care_rounded : Icons.person_rounded),
-                                color: statusColor,
-                                size: 22,
+                      String categoryIcon = '🧒';
+                      if (m.category == PersonCategory.mother) categoryIcon = '🤰';
+                      if (m.category == PersonCategory.newbornYoungInfant) categoryIcon = '👶';
+
+                      return GestureDetector(
+                        onTap: () => onStartMemberAssessment(m),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppTheme.cardBorder),
+                            boxShadow: AppTheme.cardShadow(),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 42, height: 42,
+                                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+                                child: Center(child: Text(categoryIcon, style: const TextStyle(fontSize: 20))),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(m.name, style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
-                                  Text(m.role, style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMedium)),
-                                  if (m.latestMuacCm != null)
-                                    Text('MUAC: ${m.latestMuacCm!.toStringAsFixed(1)} cm', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor)),
-                                ],
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(m.name, style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+                                    Text(m.role, style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMedium)),
+                                    if (m.latestMuacCm != null)
+                                      Text('MUAC: ${m.latestMuacCm!.toStringAsFixed(1)} cm', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor)),
+                                  ],
+                                ),
                               ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                              child: Text(m.riskStatus.name, style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor)),
-                            ),
-                          ],
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                                child: Text(m.riskStatus.name, style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor)),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     }).toList(),
@@ -219,7 +412,7 @@ class HouseholdDetailsScreen extends StatelessWidget {
               ),
             ),
 
-            // Start Triage Button
+            // Start Assessment CTA
             Container(
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -2))]),
@@ -227,9 +420,9 @@ class HouseholdDetailsScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton.icon(
-                  onPressed: onStartAssessment,
+                  onPressed: () => _showMemberChooser(context, householdMembers),
                   icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
-                  label: Text('Start Clinical Assessment', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  label: Text('Select Person & Assess', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.accentTeal,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),

@@ -13,39 +13,32 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
   double _progress = 0.0;
   late AnimationController _fadeCtrl;
-  late AnimationController _slideCtrl;
   late AnimationController _pulseCtrl;
   late Animation<double> _fadeAnim;
-  late Animation<Offset> _slideAnim;
   late Animation<double> _pulseAnim;
 
   final List<String> _bootMessages = [
     'Loading clinical rules engine...',
-    'Initializing IMCI protocol (26 params)...',
+    'Initializing IMCI protocol...',
     'Mounting offline SQLite database...',
     'Pre-loading Dagbani audio prompts...',
     'Configuring 2G SMS compressor...',
-    'Verifying encrypted local storage...',
+    'Verifying encrypted storage...',
     'CareBridge AI is ready.',
   ];
-  String _currentMsg = 'Initializing secure system...';
+  String _currentMsg = 'Loading...';
 
   @override
   void initState() {
     super.initState();
 
     _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
-    _slideCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
     _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600))..repeat(reverse: true);
 
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
-    _pulseAnim = Tween<double>(begin: 0.96, end: 1.04)
-        .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+    _pulseAnim = Tween<double>(begin: 0.96, end: 1.04).animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
 
     _fadeCtrl.forward();
-    _slideCtrl.forward();
     _startInit();
   }
 
@@ -68,199 +61,304 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   void dispose() {
     _fadeCtrl.dispose();
-    _slideCtrl.dispose();
     _pulseCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    const brandBlue = Color(0xFF1E68F6);
+    const darkNavy = Color(0xFF0B1E36);
+    const waveBlue = Color(0xFF0052CC);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0A2540),
+      backgroundColor: const Color(0xFFF4F8FD),
       body: Stack(
         children: [
-          // Full-bleed hero image with gradient fallback
+          // Light gradient background with soft tech circles
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/splash_hero.png',
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF0A2540), Color(0xFF0D3563), Color(0xFF1A5A6A)],
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // Dark gradient overlay — bottom-heavy for text readability
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
+            child: Container(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.25),
-                    Colors.black.withValues(alpha: 0.78),
-                    Colors.black.withValues(alpha: 0.92),
-                  ],
-                  stops: const [0.0, 0.35, 0.7, 1.0],
+                  colors: [Color(0xFFEBF3FC), Color(0xFFFFFFFF), Color(0xFFF0F6FE)],
                 ),
               ),
             ),
           ),
 
-          // Subtle top teal overlay shimmer
+          // Tech background grid/dot pattern overlay fallback
           Positioned(
-            top: 0, left: 0, right: 0, height: 180,
-            child: DecoratedBox(
+            top: -40, left: -40,
+            child: Container(
+              width: 300, height: 300,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppTheme.primaryNavy.withValues(alpha: 0.65),
-                    AppTheme.accentTeal.withValues(alpha: 0.2),
-                    Colors.transparent,
-                  ],
-                ),
+                shape: BoxShape.circle,
+                color: brandBlue.withValues(alpha: 0.05),
               ),
             ),
           ),
 
-          // Content
+          // Main Screen Layout
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(
-                children: [
-                  const SizedBox(height: 18),
+            bottom: false,
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
 
-                  // GHS protocol badge top
-                  FadeTransition(
-                    opacity: _fadeAnim,
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                // ── Top Logo & Header ────────────────────────────────────────
+                FadeTransition(
+                  opacity: _fadeAnim,
+                  child: Column(
+                    children: [
+                      // 3D-Style Heart Logo Icon
+                      ScaleTransition(
+                        scale: _pulseAnim,
+                        child: Container(
+                          width: 82, height: 82,
                           decoration: BoxDecoration(
-                            color: AppTheme.accentTeal.withValues(alpha: 0.85),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.health_and_safety_rounded, size: 14, color: Colors.white),
-                              const SizedBox(width: 5),
-                              Text('GHS CHPS Protocol', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFF2B79FF), Color(0xFF0047BB)],
+                            ),
+                            borderRadius: BorderRadius.circular(26),
+                            boxShadow: [
+                              BoxShadow(color: brandBlue.withValues(alpha: 0.35), blurRadius: 24, offset: const Offset(0, 8)),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
-                          ),
-                          child: Text('Offline Ready', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white70)),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // Logo + Brand
-                  SlideTransition(
-                    position: _slideAnim,
-                    child: FadeTransition(
-                      opacity: _fadeAnim,
-                      child: Column(
-                        children: [
-                          // Animated logo
-                          ScaleTransition(
-                            scale: _pulseAnim,
-                            child: Container(
-                              width: 88, height: 88,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(26),
-                                boxShadow: [
-                                  BoxShadow(color: AppTheme.accentTeal.withValues(alpha: 0.5), blurRadius: 30, spreadRadius: 4),
-                                ],
-                              ),
-                              child: const Icon(Icons.favorite_rounded, color: AppTheme.accentTeal, size: 48),
+                          child: Center(
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                const Icon(Icons.favorite, color: Colors.white, size: 52),
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Icon(Icons.add_rounded, color: brandBlue, size: 24),
+                                ),
+                              ],
                             ),
                           ),
-
-                          const SizedBox(height: 20),
-
-                          Text('CareBridge AI', style: GoogleFonts.outfit(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: -0.5)),
-                          const SizedBox(height: 6),
-                          Text('Predict Risk · Save Lives · Reach Everyone', style: GoogleFonts.inter(fontSize: 13, color: Colors.white70, letterSpacing: 0.3)),
-
-                          const SizedBox(height: 28),
-
-                          // Stat pills
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _StatPill('26', 'Parameters'),
-                              const SizedBox(width: 8),
-                              _StatPill('2G', 'SMS Ready'),
-                              const SizedBox(width: 8),
-                              _StatPill('100%', 'Offline'),
-                            ],
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
+                      const SizedBox(height: 16),
 
-                  const Spacer(flex: 2),
-
-                  // Loading section
-                  FadeTransition(
-                    opacity: _fadeAnim,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      // Title: CareBridge AI
+                      RichText(
+                        text: TextSpan(
                           children: [
-                            Expanded(
-                              child: Text(_currentMsg, style: GoogleFonts.inter(fontSize: 11, color: Colors.white60), overflow: TextOverflow.ellipsis),
+                            TextSpan(
+                              text: 'CareBridge ',
+                              style: GoogleFonts.outfit(
+                                fontSize: 34,
+                                fontWeight: FontWeight.bold,
+                                color: darkNavy,
+                                letterSpacing: -0.5,
+                              ),
                             ),
-                            const SizedBox(width: 8),
-                            Text('${(_progress * 100).round()}%', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.accentTeal)),
+                            TextSpan(
+                              text: 'AI',
+                              style: GoogleFonts.outfit(
+                                fontSize: 34,
+                                fontWeight: FontWeight.bold,
+                                color: brandBlue,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: LinearProgressIndicator(
-                            value: _progress,
-                            minHeight: 5,
-                            backgroundColor: Colors.white.withValues(alpha: 0.12),
-                            valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.accentTeal),
+                      ),
+                      const SizedBox(height: 6),
+
+                      // Subtitle
+                      Text(
+                        'Predict Risk  •  Save Lives  •  Reach Everyone',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF475569),
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Protocol Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE2EDFE),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: brandBlue.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(color: brandBlue, shape: BoxShape.circle),
+                              child: const Icon(Icons.add, size: 12, color: Colors.white),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'GHS CHPS PROTOCOL',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: brandBlue,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // ── Middle Section: Hero Image + Glass Feature Badges ─────────
+                Expanded(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Hero Image (CHW Nurse)
+                      Positioned.fill(
+                        child: Image.asset(
+                          'assets/images/splash_hero.png',
+                          fit: BoxFit.contain,
+                          alignment: Alignment.bottomCenter,
+                          errorBuilder: (_, __, ___) => const SizedBox(),
+                        ),
+                      ),
+
+                      // Left Glassmorphic Feature Cards Overlay
+                      Positioned(
+                        left: 16,
+                        top: 20,
+                        child: FadeTransition(
+                          opacity: _fadeAnim,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _FeatureGlassBadge(
+                                icon: Icons.psychology_rounded,
+                                line1: 'AI-Powered',
+                                line2: 'Risk Prediction',
+                                brandBlue: brandBlue,
+                              ),
+                              const SizedBox(height: 10),
+                              _FeatureGlassBadge(
+                                icon: Icons.shield_rounded,
+                                line1: 'Secure &',
+                                line2: 'Private',
+                                brandBlue: brandBlue,
+                              ),
+                              const SizedBox(height: 10),
+                              _FeatureGlassBadge(
+                                icon: Icons.cloud_off_rounded,
+                                line1: 'Works',
+                                line2: 'Offline',
+                                brandBlue: brandBlue,
+                              ),
+                              const SizedBox(height: 10),
+                              _FeatureGlassBadge(
+                                icon: Icons.people_alt_rounded,
+                                line1: 'Built for',
+                                line2: 'Frontline Heroes',
+                                brandBlue: brandBlue,
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 24),
-                        Center(
-                          child: Text('Ghana Health Service · Savannah Region', style: GoogleFonts.inter(fontSize: 11, color: Colors.white38)),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Bottom Curved Wave & Loading Progress ─────────────────────
+                ClipPath(
+                  clipper: _TopCurveClipper(),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [waveBlue, Color(0xFF003896)],
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Ghana Health Service Logo / Subtitle
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                              ),
+                              child: const Icon(Icons.health_and_safety_rounded, color: Colors.white, size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Ghana Health Service',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                Text(
+                                  'Savannah Region',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: Colors.white.withValues(alpha: 0.8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 16),
+
+                        const SizedBox(height: 20),
+
+                        // Sleek Progress Bar
+                        SizedBox(
+                          width: 220,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: LinearProgressIndicator(
+                              value: _progress,
+                              minHeight: 4,
+                              backgroundColor: Colors.white.withValues(alpha: 0.2),
+                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        Text(
+                          _currentMsg,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: Colors.white.withValues(alpha: 0.75),
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -269,26 +367,105 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   }
 }
 
-class _StatPill extends StatelessWidget {
-  final String value;
-  final String label;
-  const _StatPill(this.value, this.label);
+// ── Left Glassmorphic Feature Badge ───────────────────────────────────────────
+class _FeatureGlassBadge extends StatelessWidget {
+  final IconData icon;
+  final String line1;
+  final String line2;
+  final Color brandBlue;
+
+  const _FeatureGlassBadge({
+    required this.icon,
+    required this.line1,
+    required this.line2,
+    required this.brandBlue,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      width: 155,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+        color: Colors.white.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Column(
+      child: Row(
         children: [
-          Text(value, style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.accentTeal)),
-          Text(label, style: GoogleFonts.inter(fontSize: 10, color: Colors.white60)),
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: brandBlue,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: brandBlue.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  line1,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1E293B),
+                    height: 1.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  line2,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF0F172A),
+                    height: 1.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
+}
+
+// ── Top Curved Clipper for Bottom Wave ─────────────────────────────────────────
+class _TopCurveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.moveTo(0, 24);
+    path.quadraticBezierTo(size.width * 0.5, -10, size.width, 24);
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

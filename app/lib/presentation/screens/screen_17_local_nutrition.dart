@@ -43,8 +43,8 @@ class LocalNutritionScreen extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('AI-Generated Local Meal Plan', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
-                                Text('High-energy, affordable local ingredients for SAM/MAM recovery in Northern Ghana.', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMedium, height: 1.3)),
+                                Text('Northern Ghana Local Meal Guidance', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+                                Text('High-energy, affordable local food guidance for maternal and child nutritional recovery.', style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMedium, height: 1.3)),
                               ],
                             ),
                           ),

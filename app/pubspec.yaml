@@ -51,3 +51,5 @@ flutter:
     - assets/rules/imci_rules.json
     # Hero images for splash and onboarding screens
     - assets/images/
+    # Regional and district data
+    - assets/data/

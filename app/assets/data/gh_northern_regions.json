@@ -1,0 +1,45 @@
+{
+  "Northern Region": {
+    "capital": "Tamale",
+    "districts": [
+      "Tamale Metropolitan", "Sagnarigu Municipal", "Savelugu Municipal",
+      "Nanton", "Tolon", "Kumbungu", "Karaga", "Gushegu Municipal",
+      "Zabzugu", "Tatale Sanguli", "Yendi Municipal", "Mion",
+      "Nanumba North Municipal", "Nanumba South", "Saboba", "Kpandai"
+    ]
+  },
+  "North East Region": {
+    "capital": "Nalerigu",
+    "districts": [
+      "East Mamprusi Municipal", "West Mamprusi Municipal",
+      "Mamprugu Moagduri", "Bunkpurugu Nakpanduri", "Chereponi",
+      "Yunyoo-Nasuan"
+    ]
+  },
+  "Savannah Region": {
+    "capital": "Damongo",
+    "districts": [
+      "West Gonja Municipal", "Central Gonja", "North Gonja",
+      "East Gonja Municipal", "North East Gonja", "Bole",
+      "Sawla-Tuna-Kalba"
+    ]
+  },
+  "Upper East Region": {
+    "capital": "Bolgatanga",
+    "districts": [
+      "Bolgatanga Municipal", "Bolgatanga East", "Bawku Municipal",
+      "Bawku West", "Binduri", "Bongo", "Builsa North Municipal",
+      "Builsa South", "Garu", "Tempane", "Kassena Nankana Municipal",
+      "Kassena Nankana West", "Nabdam", "Talensi", "Pusiga"
+    ]
+  },
+  "Upper West Region": {
+    "capital": "Wa",
+    "districts": [
+      "Wa Municipal", "Wa East", "Wa West", "Nadowli-Kaleo",
+      "Daffiama Bussie Issa", "Jirapa Municipal", "Lambussie Karni",
+      "Lawra Municipal", "Nandom Municipal", "Sissala East Municipal",
+      "Sissala West"
+    ]
+  }
+}

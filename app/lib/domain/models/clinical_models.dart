@@ -1,3 +1,22 @@
+enum UserRole {
+  districtOfficer,
+  frontlineHealthWorker,
+  caregiver,
+}
+
+enum PersonCategory {
+  mother,
+  newbornYoungInfant,
+  childUnder5,
+  other,
+}
+
+enum PregnancyStatus {
+  currentlyPregnant,
+  postpartum,
+  neither,
+}
+
 enum RiskTier { URGENT, WATCH, ROUTINE }
 
 enum TrendDirection { WORSENING, STABLE, IMPROVING, INSUFFICIENT_DATA }
@@ -26,6 +45,7 @@ class AssessmentInput {
   final bool jaundiceEarlyOrYellowPalms;
 
   // D. Maternal Anaemia & Obstetric Screening
+  final PregnancyStatus pregnancyStatus;
   final double? maternalHb; // g/dL
   final bool conjunctivaPalmarPallorProxy;
   final bool severeHeadacheVisualDisturbance; // Preeclampsia proxy
@@ -58,6 +78,7 @@ class AssessmentInput {
     this.notFeedingWell = false,
     this.infantConvulsionsHistory = false,
     this.jaundiceEarlyOrYellowPalms = false,
+    this.pregnancyStatus = PregnancyStatus.neither,
     this.maternalHb,
     this.conjunctivaPalmarPallorProxy = false,
     this.severeHeadacheVisualDisturbance = false,
@@ -117,6 +138,8 @@ class HouseholdModel {
   final String id;
   final String name;
   final String chpsZone;
+  final String? region;
+  final String? district;
   final String gpsCoordinates;
   final String address;
   final String phone;
@@ -124,13 +147,15 @@ class HouseholdModel {
   final int daysOverdue;
   final RiskTier currentRiskTier;
   final int memberCount;
-  final double priorityScore; // Calculated 0-100 algorithmic score
+  final double priorityScore;
   final double muacVelocityCmPerWeek;
 
   HouseholdModel({
     required this.id,
     required this.name,
     required this.chpsZone,
+    this.region = 'Savannah Region',
+    this.district = 'Bole',
     required this.gpsCoordinates,
     required this.address,
     required this.phone,
@@ -148,6 +173,7 @@ class MemberModel {
   final String householdId;
   final String name;
   final String role; // Pregnant Mother, Husband, Child, Infant
+  final PersonCategory category;
   final int ageMonths;
   final double? latestMuacCm;
   final RiskTier riskStatus;
@@ -158,9 +184,28 @@ class MemberModel {
     required this.householdId,
     required this.name,
     required this.role,
+    this.category = PersonCategory.childUnder5,
     required this.ageMonths,
     this.latestMuacCm,
     required this.riskStatus,
     this.isTeenagePregnancy = false,
+  });
+}
+
+class UserProfileModel {
+  final String id;
+  final String name;
+  final UserRole role;
+  final String region;
+  final String district;
+  final String phone;
+
+  UserProfileModel({
+    required this.id,
+    required this.name,
+    required this.role,
+    required this.region,
+    required this.district,
+    required this.phone,
   });
 }
