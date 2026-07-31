@@ -27,6 +27,7 @@ import 'presentation/screens/screen_17_local_nutrition.dart';
 import 'presentation/screens/screen_18_ai_care_recommendations.dart';
 import 'presentation/screens/screen_19_sync_status.dart';
 import 'presentation/screens/screen_web_only_notice.dart';
+import 'presentation/screens/screen_assess_category_picker.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -170,6 +171,9 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   ClinicalRuleResult? _activeRuleResult;
   TrendResult? _activeTrendResult;
 
+  // Tracks which category was picked so routing is correct after each form
+  PersonCategory _assessmentCategory = PersonCategory.childUnder5;
+
   // Services
   final _syncQueue = SyncQueueService();
   final _overrideLog = OverrideAuditLog();
@@ -193,7 +197,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       lethargicOrUnconscious: _childDanger['lethargicOrUnconscious'] ?? false,
       severePalmarPallor: _childDanger['severePalmarPallor'] ?? false,
       stiffNeck: _childDanger['stiffNeck'] ?? false,
-      isYoungInfant: true,
+      isYoungInfant: (_selectedMember?.ageMonths ?? 99) < 2,
       breathingRate: _rr,
       bodyTemp: _temp,
       severeChestIndrawing: _infantDanger['severeChestIndrawing'] ?? false,
@@ -216,7 +220,8 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     final ruleRes = IMCIRulesEngine.evaluate(input);
 
     // Layer 2: TFLite trend classifier — runs in background isolate, never blocks UI
-    final history = MockRepository().getHistoricalMUAC(_selectedMember?.id ?? 'M-3');
+    final memberId = _selectedMember?.id ?? _selectedHousehold?.id ?? 'M-UNKNOWN';
+    final history = MockRepository().getHistoricalMUAC(memberId);
     final trendRes = await MUACTrendClassifier.analyzeTrend(history);
 
     _syncQueue.enqueueAssessment(
@@ -266,9 +271,9 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
             _selectedTabIndex = index;
             // Reset Visits sub-view when leaving/returning to Visits tab
             if (index == 1) _showingHouseholdDetails = false;
-            // Start assessment at step 1 if Assess tab tapped fresh
-            if (index == 2 && _assessmentStep == 0) {
-              _assessmentStep = 1;
+            // Always show category picker when Assess tab is tapped fresh
+            if (index == 2) {
+              _assessmentStep = 0;
               _activeVisitContext = null;
             }
           });
@@ -501,8 +506,9 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
             (m) => m.id == visit.memberId,
             orElse: () => MockRepository().members.first,
           );
+          _assessmentCategory = _stageToCategory(visit.lifecycleStage);
           _assessmentStep = _stageToStartStep(visit.lifecycleStage);
-          _selectedTabIndex = 2; // Switch to Assess tab so screens render
+          _selectedTabIndex = 2;
         }),
       );
     }
@@ -511,18 +517,30 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       onStartMemberAssessment: (member) => setState(() {
         _selectedMember = member;
         _activeVisitContext = null;
+        _assessmentCategory = member.category;
         _assessmentStep = _categoryToStartStep(member.category);
-        _selectedTabIndex = 2; // Switch to Assess tab
+        _selectedTabIndex = 2;
         _showingHouseholdDetails = false;
       }),
       onAddNewPerson: (category) => setState(() {
         _activeVisitContext = null;
+        _assessmentCategory = category;
         _assessmentStep = _categoryToStartStep(category);
-        _selectedTabIndex = 2; // Switch to Assess tab
+        _selectedTabIndex = 2;
         _showingHouseholdDetails = false;
       }),
       onBack: () => setState(() => _showingHouseholdDetails = false),
     );
+  }
+
+  PersonCategory _stageToCategory(LifecycleStage stage) {
+    switch (stage) {
+      case LifecycleStage.childUnder5: return PersonCategory.childUnder5;
+      case LifecycleStage.newborn: return PersonCategory.newbornYoungInfant;
+      case LifecycleStage.postpartum:
+      case LifecycleStage.pregnant:
+      case LifecycleStage.womanReproductiveAge: return PersonCategory.mother;
+    }
   }
 
   int _stageToStartStep(LifecycleStage stage) {
@@ -562,19 +580,34 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   Widget _buildAssessmentTabFlow() {
     switch (_assessmentStep) {
       case 0:
+        // Category picker — shown when Assess tab is tapped fresh
+        return AssessCategoryPickerScreen(
+          onCategorySelected: (category) => setState(() {
+            _selectedMember = null;
+            _activeVisitContext = null;
+            _assessmentCategory = category;
+            _assessmentStep = _categoryToStartStep(category);
+          }),
+        );
       case 1:
         return ChildAssessmentScreen(
           visitContext: _activeVisitContext,
-          onNext: (muac, oedema, dangerSigns) => setState(() {
-            _muac = muac; _oedema = oedema; _childDanger = dangerSigns; _assessmentStep = 2;
-          }),
+          onNext: (muac, oedema, dangerSigns) {
+            setState(() { _muac = muac; _oedema = oedema; _childDanger = dangerSigns; });
+            _runAIEngine(); // async — updates _assessmentStep to 4 on completion
+          },
         );
       case 2:
         return YoungInfantAssessmentScreen(
           visitContext: _activeVisitContext,
-          onNext: (rr, temp, infantSigns) => setState(() {
-            _rr = rr; _temp = temp; _infantDanger = infantSigns; _assessmentStep = 3;
-          }),
+          onNext: (rr, temp, infantSigns) {
+            setState(() { _rr = rr; _temp = temp; _infantDanger = infantSigns; });
+            if (_assessmentCategory == PersonCategory.newbornYoungInfant) {
+              _runAIEngine(); // async — skips maternal, routes to AI result
+            } else {
+              setState(() => _assessmentStep = 3);
+            }
+          },
         );
       case 3:
         return MaternalAssessmentScreen(

@@ -15,6 +15,9 @@ export default function SupervisorDashboard() {
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [selectedRegion, setSelectedRegion] = useState('Savannah Region');
   const [selectedDistrict, setSelectedDistrict] = useState('ALL');
+  const [isLoading, setIsLoading] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<string | null>(null);
+  const [backendOnline, setBackendOnline] = useState(false);
 
   const [households, setHouseholds] = useState<any[]>([
     {
@@ -100,42 +103,47 @@ export default function SupervisorDashboard() {
   });
 
   // Fetch real REST data from FastAPI backend
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const resH = await fetch('http://localhost:8000/api/v1/households');
-        if (resH.ok) {
-          const dataH = await resH.json();
-          if (dataH.households && dataH.households.length > 0) {
-            setHouseholds(
-              dataH.households.map((h: any) => ({
-                id: h.id,
-                name: h.name,
-                category: h.patient_category || 'child',
-                zone: h.chps_zone,
-                district: h.district || 'Bole',
-                region: h.region || 'Savannah Region',
-                chw: h.last_chw || 'Ama Abena (CHO)',
-                tier: h.risk_tier,
-                reasons: h.reasons || [],
-                overdueDays: h.overdue_days || 0,
-                lastSync: h.updated_at ? h.updated_at.substring(0, 10) : 'Today',
-                referralStatus: h.risk_tier === 'URGENT' ? 'Queued via SMS' : 'Monitoring',
-              }))
-            );
-          }
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const resH = await fetch('http://localhost:8000/api/v1/households');
+      if (resH.ok) {
+        setBackendOnline(true);
+        const dataH = await resH.json();
+        if (dataH.households && dataH.households.length > 0) {
+          setHouseholds(
+            dataH.households.map((h: any) => ({
+              id: h.id,
+              name: h.name,
+              category: h.patient_category || 'child',
+              zone: h.chps_zone,
+              district: h.district || 'Bole',
+              region: h.region || 'Savannah Region',
+              chw: h.last_chw || 'Ama Abena (CHO)',
+              tier: h.risk_tier,
+              reasons: h.reasons || [],
+              overdueDays: h.overdue_days || 0,
+              lastSync: h.updated_at ? h.updated_at.substring(0, 10) : 'Today',
+              referralStatus: h.risk_tier === 'URGENT' ? 'Queued via SMS' : 'Monitoring',
+            }))
+          );
         }
-        const resM = await fetch('http://localhost:8000/api/v1/chw/metrics');
-        if (resM.ok) {
-          const dataM = await resM.json();
-          setMetrics(dataM);
-        }
-      } catch (e) {
-        console.log('Using local fallback state until FastAPI backend is live');
       }
+      const resM = await fetch('http://localhost:8000/api/v1/chw/metrics');
+      if (resM.ok) {
+        const dataM = await resM.json();
+        setMetrics(dataM);
+      }
+      setLastRefreshed(new Date().toLocaleTimeString());
+    } catch (e) {
+      setBackendOnline(false);
+      console.log('Using local fallback state until FastAPI backend is live');
+    } finally {
+      setIsLoading(false);
     }
-    fetchData();
-  }, []);
+  };
+
+  useEffect(() => { fetchData(); }, []);
 
   const filteredHouseholds = households.filter((h) => {
     if (activeTier !== 'ALL' && h.tier !== activeTier) return false;
@@ -173,15 +181,36 @@ export default function SupervisorDashboard() {
             {districtOfficer.region} ({districtOfficer.district} District) — CHPS Maternal & Under-5 Triage Monitor
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ textAlign: 'right', fontSize: '12px' }}>
-            <div style={{ fontWeight: 'bold' }}>{districtOfficer.name}</div>
-            <div style={{ color: '#00A896' }}>{districtOfficer.role}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ textAlign: 'right', fontSize: '12px' }}>
+              <div style={{ fontWeight: 'bold' }}>{districtOfficer.name}</div>
+              <div style={{ color: '#00A896' }}>{districtOfficer.role}</div>
+            </div>
+            {lastRefreshed && (
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
+                Updated {lastRefreshed}
+              </div>
+            )}
+            <button
+              onClick={fetchData}
+              disabled={isLoading}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: isLoading ? 'rgba(0,168,150,0.3)' : 'rgba(0,168,150,0.2)',
+                color: '#00A896',
+                border: '1px solid rgba(0,168,150,0.4)',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {isLoading ? '⏳ Syncing...' : '🔄 Refresh'}
+            </button>
+            <span style={{ padding: '6px 12px', backgroundColor: backendOnline ? 'rgba(0, 168, 150, 0.2)' : 'rgba(255,80,80,0.2)', color: backendOnline ? '#00A896' : '#ff8080', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
+              {backendOnline ? '● Live API Connected' : '● Offline — Demo Mode'}
+            </span>
           </div>
-          <span style={{ padding: '6px 12px', backgroundColor: 'rgba(0, 168, 150, 0.2)', color: '#00A896', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
-            ● Live Gateway Connected
-          </span>
-        </div>
       </header>
 
       {/* Main Content Body */}
