@@ -3,7 +3,7 @@ import json
 import os
 import secrets
 import sqlite3
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -114,10 +114,16 @@ def _seed_demo_households(cur):
 
 # ── App Setup ──────────────────────────────────────────────────────────────────
 
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    init_db()
+    yield
+
 app = FastAPI(
     title="CareBridge AI - Pilot Backend API",
     description="Sync server, authentication, and supervisor REST API for CHPS frontline health triage in Northern Ghana.",
     version="2.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -127,10 +133,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.on_event("startup")
-def startup_event():
-    init_db()
 
 # In-memory session store (tokens map to user dicts); lightweight, acceptable for pilot
 DB_SESSIONS: Dict[str, dict] = {}
