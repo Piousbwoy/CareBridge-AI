@@ -15,6 +15,7 @@ import 'presentation/screens/screen_3_onboarding_why.dart';
 import 'presentation/screens/screen_4_onboarding_pillars.dart';
 import 'presentation/screens/screen_5_onboarding_workflow_preview.dart';
 import 'presentation/screens/screen_6_signin.dart';
+import 'presentation/screens/screen_6_forgot_pin.dart';
 import 'presentation/screens/screen_7_create_account.dart';
 import 'presentation/screens/screen_8_pin_login.dart';
 import 'presentation/screens/screen_10_prioritized_visits.dart';
@@ -115,6 +116,12 @@ class _CareBridgeAppState extends State<CareBridgeApp> {
         return SignInScreen(
           onSignInSuccess: () => setState(() => _currentStep = 'PIN_LOGIN'),
           onCreateAccountRequested: () => setState(() => _currentStep = 'CREATE_ACCOUNT'),
+          onForgotPinRequested: () => setState(() => _currentStep = 'FORGOT_PIN'),
+        );
+      case 'FORGOT_PIN':
+        return ForgotPinScreen(
+          onBackToSignIn: () => setState(() => _currentStep = 'SIGNIN'),
+          onPinResetSuccess: () => setState(() => _currentStep = 'SIGNIN'),
         );
       case 'CREATE_ACCOUNT':
         return CreateAccountScreen(

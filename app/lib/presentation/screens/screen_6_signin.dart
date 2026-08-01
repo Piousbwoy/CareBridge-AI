@@ -7,7 +7,14 @@ import '../../data/mock_repository.dart';
 class SignInScreen extends StatefulWidget {
   final VoidCallback onSignInSuccess;
   final VoidCallback onCreateAccountRequested;
-  const SignInScreen({super.key, required this.onSignInSuccess, required this.onCreateAccountRequested});
+  final VoidCallback? onForgotPinRequested;
+
+  const SignInScreen({
+    super.key,
+    required this.onSignInSuccess,
+    required this.onCreateAccountRequested,
+    this.onForgotPinRequested,
+  });
 
   @override
   State<SignInScreen> createState() => _SignInScreenState();
@@ -207,7 +214,19 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                                   hintText: '••••',
                                   letterSpacing: 8,
                                 ),
-                                const SizedBox(height: 20),
+                                 Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    TextButton(
+                                      onPressed: widget.onForgotPinRequested,
+                                      child: Text(
+                                        'Forgot PIN?',
+                                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.accentTeal),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
 
                                 // Sign In button
                                 _GradientButton(
