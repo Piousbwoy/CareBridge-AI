@@ -12,7 +12,7 @@ class MockRepository extends ChangeNotifier {
   static final MockRepository _instance = MockRepository._internal();
   factory MockRepository() => _instance;
   MockRepository._internal() {
-    _loadFromLocalDatabase();
+    loadFromLocalDatabase();
     _initCareSchedules();
   }
 
